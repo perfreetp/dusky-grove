@@ -1,0 +1,1410 @@
+<title>高空舞台梁剖面</title>
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#05090f; --bg2:#091320; --panel:#0b1522; --panel2:#0e1b2c; --panel3:#08111d;
+  --ink:#e9f1fb; --ink2:#a8bacc; --muted:#6a7f97; --line:#1a2841; --line2:#283b58;
+  --steel:#7ea5cc; --steel2:#48698e; --steelTop:#c0d7f1;
+  --accent:#33dcc0; --amber:#f3b463; --danger:#ff5f6d; --ok:#43df9a; --warn:#ffc063;
+  --mat:#c8904f; --deck:#131c2a; --stagebg:#03070c;
+  --grid:rgba(150,190,240,.055);
+  --shadow:0 20px 44px rgba(0,0,0,.5);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme: light;
+    --bg:#eef3f9; --bg2:#e4ebf4; --panel:#ffffff; --panel2:#f5f8fc; --panel3:#eef3fa;
+    --ink:#0c1521; --ink2:#3b4e65; --muted:#69798d; --line:#d9e2ed; --line2:#bfcedd;
+    --steel:#4f769c; --steel2:#809bb6; --steelTop:#2c4a67;
+    --accent:#0d9b84; --amber:#b3731c; --danger:#d9293f; --ok:#0f8f5d; --warn:#a86911;
+    --mat:#b0763a; --deck:#dbe4ef; --stagebg:#f8fbfe;
+    --grid:rgba(30,60,100,.085);
+    --shadow:0 14px 30px rgba(30,50,80,.10);
+  }
+}
+:root[data-theme="light"]{
+  color-scheme: light;
+  --bg:#eef3f9; --bg2:#e4ebf4; --panel:#ffffff; --panel2:#f5f8fc; --panel3:#eef3fa;
+  --ink:#0c1521; --ink2:#3b4e65; --muted:#69798d; --line:#d9e2ed; --line2:#bfcedd;
+  --steel:#4f769c; --steel2:#809bb6; --steelTop:#2c4a67;
+  --accent:#0d9b84; --amber:#b3731c; --danger:#d9293f; --ok:#0f8f5d; --warn:#a86911;
+  --mat:#b0763a; --deck:#dbe4ef; --stagebg:#f8fbfe;
+  --grid:rgba(30,60,100,.085);
+  --shadow:0 14px 30px rgba(30,50,80,.10);
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#05090f; --bg2:#091320; --panel:#0b1522; --panel2:#0e1b2c; --panel3:#08111d;
+  --ink:#e9f1fb; --ink2:#a8bacc; --muted:#6a7f97; --line:#1a2841; --line2:#283b58;
+  --steel:#7ea5cc; --steel2:#48698e; --steelTop:#c0d7f1;
+  --accent:#33dcc0; --amber:#f3b463; --danger:#ff5f6d; --ok:#43df9a; --warn:#ffc063;
+  --mat:#c8904f; --deck:#131c2a; --stagebg:#03070c;
+  --grid:rgba(150,190,240,.055);
+  --shadow:0 20px 44px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; color:var(--ink);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:
+    radial-gradient(980px 520px at 10% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 62%),
+    radial-gradient(760px 460px at 98% 2%, color-mix(in srgb, var(--steel) 11%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+  background-attachment:fixed;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-block:14px 16px;
+}
+.mono{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-variant-numeric:tabular-nums}
+
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 20px;margin-bottom:12px}
+.brand h1{font-size:19px;line-height:1.25;margin:0;font-weight:640;letter-spacing:.005em}
+.brand p{margin:4px 0 0;color:var(--ink2);font-size:12px;max-width:60ch}
+.kicker{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.kicker i{width:16px;height:1px;background:var(--accent);display:block}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+button{
+  font:inherit;font-size:12.5px;color:var(--ink);background:var(--panel2);border:1px solid var(--line2);
+  border-radius:9px;padding:7px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+  white-space:nowrap;transition:border-color .15s,background .15s,transform .1s
+}
+button:hover{border-color:var(--accent);background:var(--panel)}
+button:active{transform:translateY(1px)}
+button.primary{background:color-mix(in srgb, var(--accent) 16%, var(--panel));border-color:color-mix(in srgb, var(--accent) 55%, var(--line2));font-weight:640}
+button.on{background:var(--danger);border-color:var(--danger);color:#fff}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.shell{display:grid;grid-template-columns:minmax(0,1fr) 344px;gap:12px;align-items:start}
+@media (max-width: 940px){ .shell{grid-template-columns:minmax(0,1fr)} }
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel3)}
+.card-h h2{margin:0;font-size:12px;font-weight:620;letter-spacing:.02em;color:var(--ink2)}
+.card-h .tag{margin-left:auto;font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px}
+
+.stagewrap{position:relative;background:var(--stagebg);height:clamp(420px,58vh,620px);min-height:380px}
+#konva{position:absolute;inset:0;touch-action:none}
+.readout{display:flex;flex-wrap:wrap;gap:6px;padding:9px 12px 0}
+.hchip{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:10.5px;display:flex;gap:6px;align-items:baseline}
+.hchip span{color:var(--muted);font-size:9.5px}
+.hchip b{font-size:12px}
+.badge{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:5px;letter-spacing:.03em;border:1px solid transparent}
+.badge.teal{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.badge.red{background:color-mix(in srgb,var(--danger) 22%,transparent);color:var(--danger)}
+.badge.grey{background:color-mix(in srgb,var(--muted) 20%,transparent);color:var(--muted)}
+.badge.amber{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.hint{position:absolute;right:10px;top:10px;z-index:4;font-size:10px;color:var(--muted);text-align:right;line-height:1.55;pointer-events:none}
+
+.controls{display:grid;gap:11px;padding:12px;background:var(--panel3)}
+.row{display:grid;grid-template-columns:104px minmax(0,1fr) 62px;gap:10px;align-items:center}
+.row label{font-size:11px;color:var(--ink2);display:flex;flex-direction:column;gap:1px}
+.row label small{font-size:9.5px;color:var(--muted)}
+.row output{text-align:right;font-size:12px;color:var(--accent)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:var(--line2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;margin-top:-5.5px;border-radius:50%;background:var(--panel);border:2px solid var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent);cursor:pointer}
+input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:var(--line2)}
+input[type=range]::-moz-range-progress{height:4px;border-radius:4px;background:var(--accent)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--panel);border:2px solid var(--accent);cursor:pointer}
+input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:8px}
+
+.inspector{display:grid;gap:12px}
+.fig{display:grid;gap:9px;padding:12px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.metric{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 9px;min-width:0}
+.metric .k{font-size:10px;color:var(--muted)}
+.metric .v{font-size:19px;font-weight:640;letter-spacing:-.01em;line-height:1.15;margin-top:2px}
+.metric .v small{font-size:10px;font-weight:500;color:var(--muted);margin-left:3px}
+.meter{height:5px;border-radius:5px;background:var(--line);margin-top:7px;overflow:hidden;position:relative}
+.meter .fill{position:absolute;inset:0 auto 0 0;border-radius:5px;background:var(--ok);transition:width .25s,background .25s}
+.meter .fill.bad{background:var(--danger)}
+.note{font-size:10.5px;color:var(--ink2);line-height:1.6}
+.note b{color:var(--ink)}
+
+.supports{display:grid;gap:7px;padding:12px}
+.sup{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--steel2);border-radius:9px;padding:7px 9px 8px}
+.sup.worst{border-left-color:var(--danger);background:color-mix(in srgb,var(--danger) 7%,var(--panel2))}
+.sup.crit{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 6%,var(--panel2))}
+.sup.off{opacity:.55;border-left-color:var(--muted)}
+.supTop{display:flex;align-items:baseline;gap:7px;font-size:11px}
+.supTop .supName{font-weight:600}
+.supTop .supX{font-size:9.5px;color:var(--muted)}
+.supTop .badge{margin-left:auto}
+.supMain{display:flex;align-items:baseline;gap:4px;margin-top:2px}
+.supMain b{font-size:17px;font-weight:640;letter-spacing:-.01em}
+.supMain .unit{font-size:9.5px;color:var(--muted)}
+.supMain .pct{margin-left:auto;font-size:10px;color:var(--ink2)}
+.sup .meter{margin:5px 0 4px}
+.supFoot{font-size:9.5px;color:var(--muted)}
+.cmp{padding:0 12px 12px;font-size:10.5px;color:var(--ink2);line-height:1.62}
+
+.chartbox{padding:9px 10px 6px}
+.chartbox svg{display:block;width:100%;height:auto;overflow:visible}
+.chart-legend{display:flex;gap:11px;flex-wrap:wrap;font-size:9.5px;color:var(--muted);padding:0 12px 10px}
+.chart-legend i{display:inline-block;width:12px;height:2px;vertical-align:middle;margin-right:4px}
+
+.detail{grid-column:1/-1}
+.detail .body{display:none;padding:0 12px 12px}
+.detail.open .body{display:block}
+.detail .body svg{width:100%;display:block}
+
+.toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,14px);background:var(--panel);border:1px solid var(--accent);
+  color:var(--ink);padding:9px 14px;border-radius:10px;font-size:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;
+  transition:opacity .22s,transform .22s;z-index:30;max-width:calc(100vw - 34px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.foot{margin-top:12px;font-size:10px;color:var(--muted);line-height:1.65;max-width:92ch}
+.foot b{color:var(--ink2);font-weight:600}
+</style>
+
+<div class="top">
+  <div class="brand">
+    <span class="kicker"><i></i>结构剖面 · 弹性支座梁</span>
+    <h1>高空舞台 · 钢梁与四个吊点</h1>
+    <p>梁按 Euler–Bernoulli 弹性支座简化；四个吊点按各自刚度分担载荷，不是平均分，且只受拉、可松弛。拖动演员，梁挠度与各吊点反力实时重算。</p>
+  </div>
+  <div class="top-actions">
+    <button id="presetBtn" title="载入偏载布局（R）">载入偏载布局</button>
+    <button id="btnSym" title="两人站在中跨，观察跨中挠度">中跨重载</button>
+    <button id="btnThrow" class="primary" title="抛起演员乙（空格）">抛起一次</button>
+    <button id="btnStop">复位</button>
+  </div>
+</div>
+
+<div class="shell">
+  <div class="card">
+    <div class="card-h"><h2>纵向剖面 · 梁长 8.40 m</h2><span class="tag">几何真实比例</span></div>
+    <div class="stagewrap" id="stagewrap">
+      <div id="konva"></div>
+      <div class="hint">拖动演员改变站位<br>滑块沿梁长剖切</div>
+    </div>
+    <div class="readout">
+      <div class="hchip"><span>挠度峰值</span><b id="hudPeak" class="mono">—</b><span>mm</span></div>
+      <div class="hchip"><span>位置</span><b id="hudPeakAt" class="mono">—</b><span>m</span></div>
+      <div class="hchip"><span>最不利</span><b id="hudWorst" class="mono">—</b></div>
+      <div class="hchip"><span>ΣR / W</span><b id="hudSum" class="mono">—</b><span>kN</span></div>
+      <div class="hchip"><span>窗口净空</span><b id="hudWin" class="mono">—</b><span>cm</span><span id="hudWinBadge" class="badge teal">OK</span></div>
+    </div>
+    <div class="controls">
+      <div class="row">
+        <label for="slice">剖切位置<small>沿梁长切开</small></label>
+        <input id="slice" type="range" min="0" max="100" step="1" value="38" aria-label="剖切位置">
+        <output id="sliceVal" class="mono">—</output>
+      </div>
+      <div class="row">
+        <label for="limit">挠度限值<small>mm</small></label>
+        <input id="limit" type="range" min="20" max="140" step="1" aria-label="挠度限值">
+        <output id="limitVal" class="mono">—</output>
+      </div>
+      <div class="row">
+        <label for="kScale">吊点刚度<small>四吊点同比例缩放</small></label>
+        <input id="kScale" type="range" min="40" max="200" step="5" aria-label="吊点整体刚度倍率">
+        <output id="kScaleVal" class="mono">1.00×</output>
+      </div>
+    </div>
+  </div>
+
+  <div class="inspector">
+    <div class="card">
+      <div class="card-h"><h2>四个吊点 · 反力</h2><span class="tag" id="balance">ΣR = W</span></div>
+      <div class="supports" id="supportList"></div>
+      <div class="cmp" id="avgNote"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>挠度曲线</h2><span class="tag">红段 = 超限</span></div>
+      <div class="chartbox" id="mainChart"></div>
+      <div class="chart-legend">
+        <span><i style="background:var(--accent)"></i>挠度 v(x)</span>
+        <span><i style="background:var(--danger)"></i>超限</span>
+        <span><i style="background:var(--warn)"></i>限值</span>
+        <span><i style="background:var(--steel2)"></i>吊点</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>抛接窗口净空</h2><span class="tag" id="clearTag">—</span></div>
+      <div class="fig">
+        <div class="metrics">
+          <div class="metric">
+            <div class="k">实测净空</div>
+            <div class="v"><span id="clearVal" class="mono">—</span><small>cm</small></div>
+            <div class="meter"><span id="clearBar" class="fill"></span></div>
+          </div>
+          <div class="metric">
+            <div class="k">需求净空</div>
+            <div class="v"><span id="needVal" class="mono">—</span><small>cm</small></div>
+            <div class="note" style="margin-top:5px">脚离垫 + 身高 + 余量</div>
+          </div>
+        </div>
+        <div class="note">窗口中心在 4.20 m，位于两中吊点之间最软的一段梁上，梁下垂最容易吃掉这里的净空。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>挠度峰值</h2><span class="tag">限值 <b id="limitTag" class="mono">—</b> mm</span></div>
+      <div class="fig">
+        <div class="metrics">
+          <div class="metric">
+            <div class="k">峰值</div>
+            <div class="v"><span id="peakVal" class="mono">—</span><small>mm</small></div>
+            <div class="meter"><span id="peakBar" class="fill"></span></div>
+          </div>
+          <div class="metric">
+            <div class="k">位置</div>
+            <div class="v"><span id="peakAt" class="mono">—</span><small>m</small></div>
+            <div class="note" style="margin-top:5px">超限区段 <span id="peakBand" class="mono">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card detail" id="detailPanel">
+      <div class="card-h"><h2>放大曲线</h2>
+        <button id="btnDetail" style="margin-left:auto;padding:3px 9px;font-size:11px" aria-expanded="false" aria-controls="detailBody">展开</button>
+      </div>
+      <div class="body" id="detailBody"><div id="detailChart"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  建议路径：① 按「载入偏载布局」，两人（0.98 / 1.84 m）挤在左端，吊点 2 反力最大 2.16 kN，最远端吊点 4 只有 0.65 kN；
+  ② 把演员乙拖过 <b>7.8 m</b>，吊点 4 反力翻转成全场最大（约 1.7 kN 以上），同时挠度峰值从 2.1 m 挪到中跨 4.1 m 附近；
+  ③ 按「中跨重载」（两人站 3.30 / 4.50 m），峰值升到 128 mm、超过 90 mm 限值，窗口净空从 299 cm 掉到 293 cm；
+  ④ 拖动「剖切位置」滑块，站在窗口旁看净空读数是否被梁的下垂吃掉。
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/konva/10.7.1/konva.min.js"></script>
+<script>/* stage-model.js — 小型高空舞台：一根钢梁 + 四个弹性吊点 + 两名悬挂演员
+ *
+ * 力学模型
+ *   · 梁：Euler–Bernoulli 梁，2 节点/单元，Hermite 三次形函数，位移法
+ *   · 吊点：竖向弹簧（只受拉），R_i = k_i · v_i
+ *        四个吊点按各自刚度分配载荷，而非平均分配
+ *   · 若某吊点反力为负，该点脱开（k=0），载荷重分配后迭代
+ *   · 单位 m / kN / kN·m² / kN/m；向下挠度为正
+ *
+ * 无外部依赖，可在 Node 中单独测试。
+ */
+(function (global) {
+  'use strict';
+  var G = 9.81;
+
+  function defaultConfig() {
+    return {
+      L: 8.40,
+      xs: [0.50, 2.90, 6.30, 7.40],
+      k:  [150, 30, 70, 800],      // 吊点竖向刚度 kN/m（刻意不等刚度）
+      EI: 13,                      // 梁抗弯刚度 kN·m²
+      w:  0.50,                    // 梁自重 + 附件线荷载 kN/m
+      nPerM: 30,
+      beamTop: 5.34,               // 梁顶标高（未变形）
+      beamDepth: 0.28,
+      deckTop: 2.00,               // 保护垫顶面标高
+      matThick: 0.20,
+      defLimit: 90,                // 挠度限值 mm
+      mass: 78,                    // 演员质量 kg
+      ropeLen: 1.20,               // 保险绳自然长度 m
+      ropeK: 30,                   // 保险绳刚度 kN/m
+      ropeDamp: 10.0,              // 保险绳阻尼 kN·s/m
+      ropeTmax: 1.8,               // 绳索/缓冲器最大张力 kN（防坠器限力）
+      headH: 1.66,                 // 演员身高 m
+      safety: 0.10,                // 净空安全余量 m
+      apex: 1.20,                  // 抛起时脚部上升高度 m
+      catchX: 4.20,                // 抛接窗口中心
+      kScale: 1.0
+    };
+  }
+
+  function make(cfg) {
+    var c = {};
+    var d = defaultConfig();
+    for (var kk in d) c[kk] = d[kk];
+    if (cfg) for (var key in cfg) c[key] = cfg[key];
+    var nSeg = Math.round(c.L * c.nPerM);
+    c.nSeg = nSeg;
+    c.nN = nSeg + 1;
+    c.h = c.L / nSeg;
+    c.nd = 2 * c.nN;
+    c.supNodes = c.xs.map(function (x) { return Math.round(x / c.h); });
+    c.underside0 = c.beamTop - c.beamDepth;
+    c.matTop = c.deckTop;
+    c.windowH = c.apex + c.headH;        // 抛接窗口净空需求（脚到头顶）
+    c.requiredClear = c.windowH + c.safety;
+    c.cache = Object.create(null);
+    return c;
+  }
+
+  /* ---------- Hermite 形函数 ---------- */
+  function hermite(m, x) {
+    var h = m.h;
+    var e = Math.min(m.nSeg - 1, Math.max(0, Math.floor(x / h)));
+    var xi = (x - e * h) / h;
+    if (xi < 0) xi = 0;
+    if (xi > 1) xi = 1;
+    return {
+      e: e, xi: xi,
+      N1: 1 - 3 * xi * xi + 2 * xi * xi * xi,
+      N2: h * (xi - 2 * xi * xi + xi * xi * xi),
+      N3: 3 * xi * xi - 2 * xi * xi * xi,
+      N4: h * (-xi * xi + xi * xi * xi),
+      d1: (-6 * xi + 6 * xi * xi) / h,
+      d2: 1 - 4 * xi + 3 * xi * xi,
+      d3: (6 * xi - 6 * xi * xi) / h,
+      d4: -2 * xi + 3 * xi * xi
+    };
+  }
+
+  /* ---------- 装配与带状 LU 分解（带宽 3） ---------- */
+  function factorForKey(m, kNow) {
+    var n = m.nd, bw = 3;
+    var A = new Float64Array(n * n);
+    var c = m.EI / (m.h * m.h * m.h), h = m.h;
+    var ke = [
+      [12 * c, 6 * c * h, -12 * c, 6 * c * h],
+      [6 * c * h, 4 * c * h * h, -6 * c * h, 2 * c * h * h],
+      [-12 * c, -6 * c * h, 12 * c, -6 * c * h],
+      [6 * c * h, 2 * c * h * h, -6 * c * h, 4 * c * h * h]
+    ];
+    for (var e = 0; e < m.nSeg; e++) {
+      var i = 2 * e;
+      for (var a = 0; a < 4; a++) for (var b = 0; b < 4; b++)
+        A[(i + a) * n + (i + b)] += ke[a][b];
+    }
+    for (var s = 0; s < m.supNodes.length; s++) {
+      var sn = m.supNodes[s];
+      A[(2 * sn) * n + 2 * sn] += Math.max(1e-9, kNow[s]);
+    }
+    for (var col = 0; col < n; col++) {
+      var piv = A[col * n + col];
+      if (Math.abs(piv) < 1e-12) piv = 1e-12;
+      var im = Math.min(n - 1, col + bw);
+      for (var r = col + 1; r <= im; r++) {
+        var f = A[r * n + col] / piv;
+        A[r * n + col] = f;
+        for (var j = col + 1; j <= im; j++) A[r * n + j] -= f * A[col * n + j];
+      }
+    }
+    return { A: A, n: n, bw: bw };
+  }
+
+  function solveFactor(F, rhs) {
+    var A = F.A, n = F.n, bw = F.bw, i, j, s, t;
+    var y = new Float64Array(n);
+    for (i = 0; i < n; i++) {
+      s = rhs[i];
+      for (j = Math.max(0, i - bw); j < i; j++) s -= A[i * n + j] * y[j];
+      y[i] = s;
+    }
+    var x = new Float64Array(n);
+    for (i = n - 1; i >= 0; i--) {
+      t = y[i];
+      for (j = i + 1; j <= Math.min(n - 1, i + bw); j++) t -= A[i * n + j] * x[j];
+      x[i] = t / A[i * n + i];
+    }
+    return x;
+  }
+
+  function loadVector(m, loads, wScale) {
+    var f = new Float64Array(m.nd), i, e, q, p, N;
+    var w = m.w * (wScale == null ? 1 : wScale);
+    for (e = 0; e < m.nSeg; e++) {
+      i = 2 * e;
+      f[i] += w * m.h / 2;
+      f[i + 1] += w * m.h * m.h / 12;
+      f[i + 2] += w * m.h / 2;
+      f[i + 3] += -w * m.h * m.h / 12;
+    }
+    for (q = 0; q < loads.length; q++) {
+      p = loads[q];
+      if (!p || !p.P) continue;
+      N = hermite(m, Math.max(0, Math.min(m.L, p.x)));
+      i = 2 * N.e;
+      f[i] += p.P * N.N1;
+      f[i + 1] += p.P * N.N2;
+      f[i + 2] += p.P * N.N3;
+      f[i + 3] += p.P * N.N4;
+    }
+    return f;
+  }
+
+  function vAt(m, u, x) {
+    var N = hermite(m, Math.max(0, Math.min(m.L, x)));
+    var i = 2 * N.e;
+    return N.N1 * u[i] + N.N2 * u[i + 1] + N.N3 * u[i + 2] + N.N4 * u[i + 3];
+  }
+  function slopeAt(m, u, x) {
+    var N = hermite(m, Math.max(0, Math.min(m.L, x)));
+    var i = 2 * N.e;
+    return N.d1 * u[i] + N.d2 * u[i + 1] + N.d3 * u[i + 2] + N.d4 * u[i + 3];
+  }
+
+  /* ---------- 静力求解（含吊点松弛迭代） ---------- */
+  function solve(m, loads, opts) {
+    opts = opts || {};
+    var s, q;
+    var kFull = m.k.map(function (k) { return Math.max(1e-9, k * (m.kScale || 1)); });
+    var kNow = kFull.slice();
+    var active = m.k.map(function () { return true; });
+    var F = null, u = null, R = null, iter;
+    for (iter = 0; iter < 14; iter++) {
+      var key = (m.kScale || 1) + '|' + kNow.map(function (k) { return k > 0 ? 1 : 0; }).join('');
+      F = m.cache[key];
+      if (!F) { F = factorForKey(m, kNow); m.cache[key] = F; }
+      u = solveFactor(F, loadVector(m, loads, opts.wScale));
+      R = [];
+      var nAct = 0;
+      for (s = 0; s < m.supNodes.length; s++) {
+        R.push(active[s] ? kNow[s] * u[2 * m.supNodes[s]] : 0);
+        if (active[s]) nAct++;
+      }
+      var worst = -1, worstR = -1e-4;
+      for (s = 0; s < R.length; s++) {
+        if (active[s] && R[s] < worstR) { worstR = R[s]; worst = s; }
+      }
+      if (worst < 0 || nAct <= 1) break;
+      active[worst] = false;
+      kNow[worst] = 0;
+    }
+    var Rc = R.map(function (r, idx) { return active[idx] ? Math.max(0, r) : 0; });
+
+    var ns = 220, samp = [];
+    var peak = { v: -1e9, x: 0 }, minv = { v: 1e9, x: 0 };
+    for (q = 0; q <= ns; q++) {
+      var xx = m.L * q / ns, vv = vAt(m, u, xx);
+      samp.push({ x: xx, v: vv });
+      if (vv > peak.v) { peak.v = vv; peak.x = xx; }
+      if (vv < minv.v) { minv.v = vv; minv.x = xx; }
+    }
+    var total = m.w * m.L + loads.reduce(function (a, p) { return a + (p ? p.P : 0); }, 0);
+    var sumR = Rc.reduce(function (a, b) { return a + b; }, 0);
+    var worstIdx = 0;
+    for (s = 1; s < Rc.length; s++) if (Rc[s] > Rc[worstIdx]) worstIdx = s;
+    // 最不利吊点（含刚度利用率：R_i / k_i 即该点位移，取最大）
+    var critIdx = 0, crit = -1;
+    for (s = 0; s < Rc.length; s++) {
+      var util = Rc[s] / m.k[s];
+      if (util > crit) { crit = util; critIdx = s; }
+    }
+
+    return {
+      u: u, R: Rc, active: active, sumR: sumR, total: total,
+      peak: peak, minv: minv, samples: samp, worst: worstIdx, critical: critIdx,
+      kNow: kNow, loads: loads,
+      vAt: function (x) { return vAt(m, u, x); },
+      slopeAt: function (x) { return slopeAt(m, u, x); }
+    };
+  }
+
+  function underside(m, r, x) { return m.underside0 - r.vAt(x); }
+  function clearance(m, r, x) { return underside(m, r, x) - m.matTop; }
+
+  /* ---------- 抛接动力学（准静态梁 + 绳索弹簧-阻尼） ---------- */
+  function makeActor(m, x) {
+    var a = { x: x, feet: 0, v: 0, vx: 0, T: 0, slack: false, thrown: false, landed: false };
+    resetActor(m, { vAt: function () { return 0; } }, a);
+    return a;
+  }
+
+  function resetActor(m, r, a) {
+    var under = underside(m, r, a.x);
+    a.feet = under - m.headH - m.ropeLen - (m.mass * G / 1000) / m.ropeK;
+    a.v = 0; a.vx = 0;
+    a.T = m.mass * G / 1000;
+    a.slack = false; a.thrown = false; a.landed = false; a.caught = false;
+    a.restFeet = a.feet;
+  }
+
+  // 抛起：竖直初速度；dir 为水平方向（-1 左 / +1 右）
+  function launch(m, a, apex, dir, lateral) {
+    a.v = Math.sqrt(2 * G * Math.max(0, apex));
+    a.vx = dir * (lateral || 0);
+    a.thrown = true;
+    a.slack = true;
+    a.landed = false;
+  }
+
+  // 一个子步：先按旧张力求梁，再按几何求张力（迭代 2 次）
+  function substep(m, actors) {
+    var s, r, T = new Array(actors.length);
+    var loads = actors.map(function (a) { return { x: a.x, P: a.T || 0 }; });
+    r = solve(m, loads);
+    for (s = 0; s < actors.length; s++) {
+      var a = actors[s];
+      var under = underside(m, r, a.x);
+      var hands = a.feet + m.headH;
+      var stretch = (under - hands) - m.ropeLen;   // >0 绷紧
+      var tv = 0;
+      if (stretch > 0) {
+        tv = m.ropeK * stretch - m.ropeDamp * a.v;
+        if (tv > (m.ropeTmax || 1e9)) tv = m.ropeTmax;
+        if (tv < 0) tv = 0;
+      }
+      T[s] = tv;
+      loads[s] = { x: a.x, P: tv };
+    }
+    return { r: r, T: T };
+  }
+
+  // 让演员静止悬挂位与梁变形自洽（迭代收敛）
+  function settle(m, actors, iters) {
+    iters = iters || 12;
+    var i, r = null;
+    for (i = 0; i < iters; i++) {
+      r = solve(m, actors.map(function (a) { return { x: a.x, P: a.T }; }));
+      for (var s = 0; s < actors.length; s++) {
+        var a = actors[s];
+        var under = underside(m, r, a.x);
+        a.feet = under - m.headH - m.ropeLen - (m.mass * G / 1000) / m.ropeK;
+        a.T = m.mass * G / 1000;
+        a.v = 0; a.vx = 0; a.slack = false; a.thrown = false;
+        a.restFeet = a.feet; a.caught = false; a.landed = false;
+      }
+    }
+    return r;
+  }
+
+  function stepDynamics(m, actors, dt, nSub) {
+    nSub = nSub || 4;
+    var h = dt / nSub, s, kk, r = null;
+    for (kk = 0; kk < nSub; kk++) {
+      var sub = substep(m, actors);
+      r = sub.r;
+      for (s = 0; s < actors.length; s++) {
+        var a = actors[s];
+        var Tv = sub.T[s];
+        a.T = Tv;
+        a.slack = Tv <= 1e-7;
+        if (!a.slack) a.thrown = false;
+        var acc = (Tv * 1000) / m.mass - G;
+        a.v += acc * h;
+        a.feet += a.v * h;
+        if (a.feet <= m.deckTop) {
+          a.feet = m.deckTop;
+          if (a.v < 0) a.v = 0;
+          a.landed = true;
+        }
+        if (a.vx) {
+          a.x += a.vx * h;
+          // 水平速度保持（抛接轨迹示意）
+          if (a.x < 0.05) { a.x = 0.05; a.vx = 0; }
+          if (a.x > m.L - 0.03) { a.x = m.L - 0.03; a.vx = 0; }
+        }
+      }
+    }
+    var loads = actors.map(function (a) { return { x: a.x, P: a.T || 0 }; });
+    r = solve(m, loads);
+    for (s = 0; s < actors.length; s++) {
+      if (!r.active.length) break;
+    }
+    return r;
+  }
+
+  /* ---------- 辅助 ---------- */
+  function reactionPct(r) {
+    return r.R.map(function (v) { return r.total > 0 ? v / r.total * 100 : 0; });
+  }
+
+  var api = {
+    G: G,
+    defaultConfig: defaultConfig,
+    make: make,
+    solve: solve,
+    vAt: vAt,
+    slopeAt: slopeAt,
+    underside: underside,
+    clearance: clearance,
+    makeActor: makeActor,
+    resetActor: resetActor,
+    launch: launch,
+    settle: settle,
+    stepDynamics: stepDynamics,
+    reactionPct: reactionPct,
+    hermite: hermite
+  };
+  global.StageModel = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>/* 高空舞台剖面 —— 交互与绘制 */
+(function () {
+  'use strict';
+  const SM = window.StageModel;
+  const m = SM.make();
+  const P0 = m.mass * SM.G / 1000;
+
+  const state = {
+    actors: [SM.makeActor(m, 0.98), SM.makeActor(m, 1.84)],
+    r: null,
+    sliceX: 3.20,       // 剖切面位置（沿梁长）
+    limit: m.defLimit,
+    playing: false, t: 0, accum: 0,
+    dragIdx: -1
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const stagewrap = $('stagewrap');
+  const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------------- 比例 ---------------- */
+  const PX = { s: 1, ox: 0, oy: 0, stripTop: 0, stripH: 0, baseline: 0 };
+  function layout() {
+    const W = stagewrap.clientWidth, H = stagewrap.clientHeight;
+    const padX = 36, padT = 62, padB = 132;
+    const worldTop = m.beamTop + 0.42;
+    const worldBot = 0;
+    PX.stripH = 88;
+    PX.stripTop = H - PX.stripH;
+    const availH = H - padT - padB;
+    const s = Math.min((W - 2 * padX) / m.L, availH / (worldTop - worldBot));
+    PX.s = s;
+    PX.ox = (W - s * m.L) / 2;
+    PX.oy = padT + (availH - s * (worldTop - worldBot)) / 2 + s * worldTop;
+    PX.baseline = PX.stripTop + 30;
+  }
+  const X = (x) => PX.ox + x * PX.s;
+  const Y = (y) => PX.oy - y * PX.s;
+  const U = (l) => l * PX.s;
+
+  /* ---------------- Konva ---------------- */
+  const stage = new Konva.Stage({ container: 'konva', width: 1, height: 1 });
+  const LBG = new Konva.Layer({ listening: false });
+  const LB = new Konva.Layer({ listening: false });
+  const LC = new Konva.Layer({ listening: false });
+  const LA = new Konva.Layer();
+  stage.add(LBG, LB, LC, LA);
+
+  const PAL = {
+    get steel() { return cssVar('--steel'); },
+    get steel2() { return cssVar('--steel2'); },
+    get steelTop() { return cssVar('--steelTop'); },
+    get accent() { return cssVar('--accent'); },
+    get danger() { return cssVar('--danger'); },
+    get warn() { return cssVar('--warn'); },
+    get ok() { return cssVar('--ok'); },
+    get ink2() { return cssVar('--ink2'); },
+    get muted() { return cssVar('--muted'); },
+    get line2() { return cssVar('--line2'); },
+    get mat() { return cssVar('--mat'); },
+    get deck() { return cssVar('--deck'); },
+    get panel() { return cssVar('--panel'); },
+    get stagebg() { return cssVar('--stagebg'); },
+    get grid() { return cssVar('--grid'); },
+    get amber() { return cssVar('--amber'); }
+  };
+
+  const wex = (x) => SM.vAt(m, state.r.u, x);
+
+  /* =============== 背景 =============== */
+  function drawBG() {
+    LBG.destroyChildren();
+    const W = stage.width(), H = stage.height(), P = PAL;
+    LBG.add(new Konva.Rect({
+      x: 0, y: 0, width: W, height: H,
+      fillLinearGradientStartPoint: { x: 0, y: 0 }, fillLinearGradientEndPoint: { x: 0, y: H },
+      fillLinearGradientColorStops: [0, P.stagebg, 1, cssVar('--bg2')]
+    }));
+    // 舞台地板
+    const dy = Y(m.deckTop);
+    LBG.add(new Konva.Rect({ x: X(0) - U(0.3), y: dy, width: U(m.L) + U(0.6), height: Y(0) - dy, fill: P.deck }));
+    LBG.add(new Konva.Line({ points: [X(0) - U(0.3), dy, X(m.L) + U(0.3), dy], stroke: P.line2, strokeWidth: 1 }));
+    // 保护垫
+    LBG.add(new Konva.Rect({ x: X(2.42), y: Y(m.matTop), width: U(3.56), height: U(m.matThick), fill: P.mat, opacity: .40 }));
+    LBG.add(new Konva.Rect({ x: X(2.42), y: Y(m.matTop), width: U(3.56), height: U(.05), fill: P.mat, opacity: .85 }));
+    const mt = new Konva.Text({ text: '保护垫区', fontSize: 9.5, fill: P.muted });
+    mt.x(X(2.42) + 7); mt.y(Y(m.matTop) + U(.28));
+    LBG.add(mt);
+    // 网格
+    for (let x = 0; x <= m.L + 1e-6; x += 0.5) {
+      const major = Math.abs(x - Math.round(x)) < 1e-6;
+      LBG.add(new Konva.Line({ points: [X(x), Y(0), X(x), Y(m.beamTop + .42)], stroke: P.grid, strokeWidth: major ? 1 : .6 }));
+    }
+    for (let y = 0; y <= m.beamTop + .42; y += 0.5) {
+      LBG.add(new Konva.Line({ points: [X(0), Y(y), X(m.L), Y(y)], stroke: P.grid, strokeWidth: .6 }));
+    }
+    // 梁长刻度
+    for (let x = 0; x <= m.L; x += 1) {
+      const t = new Konva.Text({ text: x + ' m', fontSize: 8.5, fill: P.muted, opacity: .7 });
+      t.x(X(x) - t.width() / 2); t.y(Y(0) + 7);
+      LBG.add(t);
+    }
+    // 挠度曲线面板底
+    LBG.add(new Konva.Rect({ x: 8, y: PX.stripTop - 6, width: W - 16, height: PX.stripH, fill: cssVar('--panel3'), opacity: .78, cornerRadius: 10 }));
+    LBG.add(new Konva.Line({ points: [16, PX.baseline, W - 16, PX.baseline], stroke: P.line2, strokeWidth: 1, opacity: .75 }));
+    const t1 = new Konva.Text({ text: '挠度曲线 v(x)  竖向放大', fontSize: 9.5, fill: P.muted });
+    t1.x(18); t1.y(PX.stripTop + 6);
+    LBG.add(t1);
+  }
+
+  /* =============== 梁 / 吊点 / 剖面带 =============== */
+  function reversePairs(arr) {
+    const o = [];
+    for (let i = arr.length - 2; i >= 0; i -= 2) o.push(arr[i], arr[i + 1]);
+    return o;
+  }
+  function drawBeam() {
+    LB.destroyChildren();
+    const P = PAL, r = state.r, N = 150;
+
+    const top = [], bot = [];
+    for (let i = 0; i <= N; i++) {
+      const x = m.L * i / N, v = wex(x);
+      top.push(X(x), Y(m.beamTop - v));
+      bot.push(X(x), Y(m.underside0 - v));
+    }
+    const outline = top.concat(reversePairs(bot));
+    LB.add(new Konva.Shape({
+      sceneFunc: (ctx) => {
+        ctx.beginPath(); ctx.moveTo(outline[0], outline[1]);
+        for (let i = 2; i < outline.length; i += 2) ctx.lineTo(outline[i], outline[i + 1]);
+        ctx.closePath();
+        const g = ctx.createLinearGradient(0, Y(m.beamTop), 0, Y(m.underside0));
+        g.addColorStop(0, P.steelTop); g.addColorStop(.38, P.steel); g.addColorStop(1, P.steel2);
+        ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = P.steelTop; ctx.lineWidth = 1; ctx.stroke();
+      }
+    }));
+
+    // 超限区段在梁身上标红
+    const limV = state.limit / 1000;
+    const spans = [];
+    let open = false, s0 = 0;
+    for (let i = 0; i <= N; i++) {
+      const x = m.L * i / N, v = wex(x);
+      const over = v > limV;
+      if (over && !open) { open = true; s0 = x; }
+      if (!over && open) { spans.push([s0, x]); open = false; }
+    }
+    if (open) spans.push([s0, m.L]);
+    for (const [a, b] of spans) {
+      const q = [];
+      const n = 24;
+      for (let k = 0; k <= n; k++) { const x = a + (b - a) * k / n, v = wex(x); q.push(X(x), Y(m.beamTop - v)); }
+      for (let k = n; k >= 0; k--) { const x = a + (b - a) * k / n, v = wex(x); q.push(X(x), Y(m.underside0 - v)); }
+      LB.add(new Konva.Shape({
+        sceneFunc: (ctx) => {
+          ctx.beginPath(); ctx.moveTo(q[0], q[1]);
+          for (let k = 2; k < q.length; k += 2) ctx.lineTo(q[k], q[k + 1]);
+          ctx.closePath();
+          ctx.fillStyle = P.danger; ctx.globalAlpha = .34; ctx.fill(); ctx.globalAlpha = 1;
+          ctx.strokeStyle = P.danger; ctx.lineWidth = 1.4; ctx.stroke();
+        }
+      }));
+    }
+
+    // 未变形梁底参照
+    const ref = [];
+    for (let i = 0; i <= 30; i++) ref.push(X(m.L * i / 30), Y(m.underside0));
+    LB.add(new Konva.Line({ points: ref, stroke: P.warn, strokeWidth: 1, dash: [5, 5], opacity: .45 }));
+
+    // 腹板中线 + 分段
+    const mid = [];
+    for (let i = 0; i <= N; i++) { const x = m.L * i / N, v = wex(x); mid.push(X(x), Y((m.beamTop + m.underside0) / 2 - v)); }
+    LB.add(new Konva.Line({ points: mid, stroke: P.line2, strokeWidth: .8, opacity: .6 }));
+    for (let x = 0.7; x < m.L; x += 0.7) {
+      const v = wex(x);
+      LB.add(new Konva.Line({ points: [X(x), Y(m.underside0 - v), X(x), Y(m.beamTop - v)], stroke: P.line2, strokeWidth: .7, opacity: .45 }));
+    }
+
+    // 吊点
+    const narrow = stage.width() < 620;
+    for (let i = 0; i < 4; i++) {
+      const x = m.xs[i], v = wex(x), R = r.R[i], act = r.active[i];
+      const pct = r.total > 0 ? R / r.total * 100 : 0;
+      const yT = Y(m.beamTop + .42), yB = Y(m.underside0 - v);
+      const col = !act ? P.muted : (i === r.worst ? P.danger : i === r.critical ? P.warn : P.accent);
+
+      LB.add(new Konva.Line({ points: [X(x), yT, X(x), yB], stroke: act ? P.steelTop : P.muted, strokeWidth: 2.2, dash: act ? null : [4, 4], opacity: act ? 1 : .5 }));
+      LB.add(new Konva.Rect({ x: X(x) - U(.075), y: yT - 3, width: U(.15), height: 6, fill: P.steel2, cornerRadius: 2 }));
+      LB.add(new Konva.Rect({ x: X(x) - U(.10), y: yB - 2, width: U(.20), height: 4, fill: col, cornerRadius: 2 }));
+      if (act) {
+        const sp = [], n = 7, y0 = yT + (yB - yT) * .16, y1 = yT + (yB - yT) * .56;
+        for (let k = 0; k <= n * 2; k++) sp.push(X(x) + (k % 2 ? U(.05) : -U(.05)), y0 + (y1 - y0) * k / (n * 2));
+        LB.add(new Konva.Line({ points: sp, stroke: P.accent, strokeWidth: 1.4, opacity: .9, lineJoin: 'round' }));
+      }
+      // 文本靠内侧排布，反力柱放在另一侧，互不遮挡
+      const side = narrow ? [1, 1, -1, 1][i] : (x < m.L / 2 ? 1 : -1);   // 窄屏：3 号向左、其余向右，避开 3/4 挤在一起
+      const barX = X(x) - side * 12;
+      const bMax = U(0.50);
+      const bLen = act ? Math.max(4, bMax * Math.min(1, R / (1.5 * P0))) : 0;
+      LB.add(new Konva.Line({ points: [barX, yT - 6, barX, yT - 6 - bLen], stroke: col, strokeWidth: 5, lineCap: 'round', opacity: .9 }));
+      LB.add(new Konva.Line({ points: [barX - 5, yT - 6 - bLen, barX + 5, yT - 6 - bLen], stroke: col, strokeWidth: 1.4, opacity: .9 }));
+      const tx = narrow ? (side > 0 ? X(x) + 7 : X(x) - 7 - 62) : (side > 0 ? X(x) + 11 : X(x) - 11 - 82);
+      const wTxt = narrow ? 62 : 82;
+      // 窄屏时相邻吊点标签上下错开，避免相互压字
+      const alt = narrow ? (i === 1 || i === 3 ? 14 : 0) : 0;
+      const stackTop = Math.max(3, yT - 6 - bLen - (narrow ? 25 : 44) - alt);
+      const al = side > 0 ? 'left' : 'right';
+      const nm = new Konva.Text({
+        text: '吊点 ' + (i + 1), fontSize: narrow ? 8 : 9, fill: narrow ? col : P.muted, width: wTxt, align: al
+      });
+      nm.x(tx); nm.y(stackTop);
+      LB.add(nm);
+      const val = new Konva.Text({
+        text: act ? R.toFixed(2) : '0.00', fontSize: narrow ? 9.5 : 12,
+        fontStyle: 'bold', fill: col, fontFamily: 'ui-monospace,monospace', width: wTxt, align: al
+      });
+      val.x(tx); val.y(stackTop + (narrow ? 8 : 11));
+      LB.add(val);
+      if (!narrow) {
+        const unit = new Konva.Text({
+          text: act ? pct.toFixed(0) + '% · k ' + m.k[i] : '已松弛',
+          fontSize: 8.5, fill: P.ink2, width: wTxt, align: al
+        });
+        unit.x(tx); unit.y(stackTop + 27);
+        LB.add(unit);
+      }
+      if (i === r.worst) {
+        LB.add(new Konva.Circle({ x: X(x), y: yB, radius: 5.5, stroke: P.danger, strokeWidth: 1.8, dash: [2, 2] }));
+        const wWin = X(windowCenter());
+        const wTagSide = Math.abs(X(x) - wWin) < 96 ? (X(x) > wWin ? 'left' : 'right') : (side > 0 ? 'left' : 'right');
+        const wTagX = wTagSide === 'left' ? X(x) + 9 : X(x) - 9 - 66;
+        const w = new Konva.Text({ text: '▲ 最不利', fontSize: narrow ? 8 : 9.5, fontStyle: 'bold', fill: P.danger, width: narrow ? 56 : 66, align: wTagSide });
+        w.x(wTagX); w.y(yB + 13);
+        LB.add(w);
+      }
+    }
+    drawDeflStrip();
+  }
+
+  function drawDeflStrip() {
+    const P = PAL, r = state.r, lim = state.limit / 1000;
+    const base = PX.baseline, H = PX.stripH - 40;
+    const maxV = Math.max(lim * 1.55, r.peak.v * 1.15, 1e-3);
+    const mapV = (v) => base - H * Math.min(1, v / maxV);
+    const kx0 = X(0), kx1 = X(m.L);
+    const ly = mapV(lim);
+    LB.add(new Konva.Line({ points: [kx0, ly, kx1, ly], stroke: P.warn, strokeWidth: 1, dash: [5, 5], opacity: .85 }));
+    const ll = new Konva.Text({ text: '限值 ' + state.limit + ' mm', fontSize: 9, fill: P.warn, opacity: .9 });
+    ll.x(kx1 - ll.width() - 2); ll.y(ly - 12);
+    LB.add(ll);
+    const pts = [], red = [];
+    for (let i = 0; i <= 200; i++) {
+      const x = m.L * i / 200, v = wex(x);
+      pts.push(X(x), mapV(v));
+      if (v > lim) red.push(X(x), mapV(v));
+    }
+    LB.add(new Konva.Line({ points: pts, stroke: P.accent, strokeWidth: 1.9, lineJoin: 'round', shadowColor: P.accent, shadowBlur: 6, shadowOpacity: .45 }));
+    if (red.length > 3) LB.add(new Konva.Line({ points: red, stroke: P.danger, strokeWidth: 3.2, lineCap: 'round' }));
+    for (let i = 0; i < 4; i++) {
+      const x = m.xs[i];
+      LB.add(new Konva.Line({ points: [X(x), base, X(x), mapV(wex(x))], stroke: i === r.worst ? P.danger : P.steel2, strokeWidth: 1, dash: [2, 3], opacity: .85 }));
+      const t = new Konva.Text({ text: (i + 1) + '', fontSize: 8.5, fill: i === r.worst ? P.danger : P.muted, align: 'center', width: 18 });
+      t.x(X(x) - 9); t.y(base + 5);
+      LB.add(t);
+    }
+    const px = X(r.peak.x), py = mapV(r.peak.v);
+    LB.add(new Konva.Circle({ x: px, y: py, radius: 3.6, fill: r.peak.v > lim ? P.danger : P.accent, stroke: P.panel, strokeWidth: 1.4 }));
+    const pkT = new Konva.Text({ text: (r.peak.v * 1000).toFixed(1) + ' mm @ ' + r.peak.x.toFixed(2) + ' m', fontSize: 9.5, fontStyle: 'bold', fill: r.peak.v > lim ? P.danger : P.accent, fontFamily: 'ui-monospace,monospace' });
+    pkT.x(Math.min(stage.width() - pkT.width() - 14, px + 7)); pkT.y(py - 15);
+    LB.add(pkT);
+    for (let x = 0; x <= m.L; x += 1) {
+      const t = new Konva.Text({ text: x, fontSize: 8, fill: P.muted, opacity: .5, align: 'center', width: 16 });
+      t.x(X(x) - 8); t.y(base + 5);
+      LB.add(t);
+    }
+  }
+
+  /* =============== 演员 =============== */
+  function drawActors() {
+    LA.destroyChildren();
+    const P = PAL, r = state.r;
+    for (let i = 0; i < 2; i++) {
+      const a = state.actors[i];
+      const x = X(a.x);
+      const under = SM.underside(m, r, a.x);
+      const yGrip = Y(under);
+      const yHead = Y(a.feet + m.headH);
+      const yFeet = Y(a.feet);
+      const taut = ((under - (a.feet + m.headH)) - m.ropeLen) > 0;
+      const col = a.slack ? P.warn : P.steel;
+
+      const sag = taut ? 0 : U(.045 + .05 * Math.max(0, Math.min(1, a.feet - m.deckTop)));
+      LA.add(new Konva.Line({
+        points: [x, yGrip, x + U(.04), (yGrip + yHead) / 2 + sag, x, yHead],
+        stroke: taut ? P.accent : P.muted, strokeWidth: taut ? 1.6 : 1.1,
+        dash: taut ? null : [4, 4], tension: .3
+      }));
+      LA.add(new Konva.Circle({ x: x, y: yGrip, radius: 2.8, fill: P.panel, stroke: taut ? P.accent : P.muted, strokeWidth: 1.2 }));
+
+      const g = new Konva.Group({ name: 'actor' });
+      const bh = yFeet - yHead;
+      const bw = Math.min(U(.30), bh * .30);
+      g.add(new Konva.Circle({ x: x, y: yHead + bh * .085, radius: bh * .062, fill: col }));
+      g.add(new Konva.Rect({ x: x - bw / 2, y: yHead + bh * .155, width: bw, height: bh * .47, fill: col, opacity: .76, cornerRadius: Math.min(6, bw / 2) }));
+      g.add(new Konva.Line({ points: [x - bw * .44, yHead + bh * .22, x - bw * .12, yHead + bh * .02], stroke: col, strokeWidth: 2.6, lineCap: 'round' }));
+      g.add(new Konva.Line({ points: [x + bw * .44, yHead + bh * .22, x + bw * .12, yHead + bh * .02], stroke: col, strokeWidth: 2.6, lineCap: 'round' }));
+      g.add(new Konva.Line({ points: [x - bw * .20, yHead + bh * .62, x - bw * .28, yFeet], stroke: col, strokeWidth: 3.2, lineCap: 'round' }));
+      g.add(new Konva.Line({ points: [x + bw * .20, yHead + bh * .62, x + bw * .28, yFeet], stroke: col, strokeWidth: 3.2, lineCap: 'round' }));
+      g.add(new Konva.Line({ points: [x - bw * .44, yFeet, x + bw * .44, yFeet], stroke: col, strokeWidth: 2.6, lineCap: 'round', opacity: .8 }));
+
+      const narrow = stage.width() < 620;
+      const lab = new Konva.Text({
+        text: narrow ? ['甲', '乙'][i] : ['甲', '乙'][i] + ' · ' + a.x.toFixed(2) + ' m',
+        fontSize: narrow ? 8 : 9.5, fill: P.ink2, align: 'center', width: narrow ? 24 : 100, opacity: .95
+      });
+      lab.x(x - (narrow ? 12 : 50)); lab.y(yFeet + 3 + (narrow ? i * 10 : 7));
+      g.add(lab);
+      if (!taut) {
+        const s = new Konva.Text({ text: '绳松弛', fontSize: 8.5, fill: P.warn, align: 'center', width: 60 });
+        s.x(x - 30); s.y(yHead - 13);
+        g.add(s);
+      }
+      const hit = new Konva.Rect({ x: x - 24, y: yHead - 10, width: 48, height: bh + 20, fill: 'rgba(0,0,0,0.002)' });
+      g.add(hit);
+      g.on('mousedown touchstart', (ev) => { if (!state.playing) { beginDrag(i); ev.cancelBubble = true; } });
+      g.on('mouseenter', () => { if (!state.playing) stage.container().style.cursor = 'grab'; });
+      g.on('mouseleave', () => { stage.container().style.cursor = ''; });
+      LA.add(g);
+    }
+  }
+
+  /* =============== 剖切 + 抛接窗口 =============== */
+  function drawSection() {
+    LC.destroyChildren();
+    const P = PAL, r = state.r;
+    const xs = state.sliceX;
+    const under = SM.underside(m, r, xs);
+    const clearV = under - m.matTop;
+    const need = m.requiredClear;
+    const bad = clearV < need;
+    const col = bad ? P.danger : P.ok;
+    const vS0 = wex(xs);
+    const sx = X(xs), yTop = Y(m.underside0 - vS0), yFloor = Y(0);
+
+    // 切面
+    LC.add(new Konva.Rect({ x: sx - 3, y: yTop, width: 6, height: yFloor - yTop, fill: P.accent, opacity: .10 }));
+    LC.add(new Konva.Line({ points: [sx - 3, yTop, sx - 3, yFloor], stroke: P.accent, strokeWidth: 1, opacity: .55 }));
+    LC.add(new Konva.Line({ points: [sx + 3, yTop, sx + 3, yFloor], stroke: P.accent, strokeWidth: 1, opacity: .55 }));
+    for (let yy = yTop + 12; yy < yFloor; yy += 14) {
+      LC.add(new Konva.Line({ points: [sx - 3, yy, sx + 3, yy - 7], stroke: P.accent, strokeWidth: .8, opacity: .4 }));
+    }
+    // 梁截面
+    const vS = wex(xs);
+    const ybT = Y(m.beamTop - vS), ybB = Y(m.underside0 - vS);
+    LC.add(new Konva.Rect({ x: sx - U(.10), y: ybT, width: U(.20), height: ybB - ybT, fill: P.steel, stroke: P.steelTop, strokeWidth: 1 }));
+
+    // 窗口就在旁边时不重复画尺寸线，避免两套读数叠在一起
+    const winNear = Math.abs(sx - X(windowCenter())) < 140;
+    // 净空尺寸线：梁底 -> 正下方的承载面（垫区内为垫面，其余为台面）
+    const inMat = xs >= 2.42 + 0.06 && xs <= 5.98 - 0.06;
+    const surfaceY = inMat ? m.matTop : m.deckTop;
+    const clearHere = under - surfaceY;
+    const yA = ybB;
+    const yB = Math.max(Y(surfaceY), yA + 8);
+    const dimX = sx + 12;
+    const dimCol = (inMat && clearHere < need) ? P.danger : P.accent;
+    if (!winNear) LC.add(new Konva.Line({ points: [dimX, yA, dimX, yB], stroke: dimCol, strokeWidth: 1.2 }));
+    if (!winNear) {
+      LC.add(new Konva.Line({ points: [dimX - 5, yA, dimX + 5, yA], stroke: dimCol, strokeWidth: 1.2 }));
+      LC.add(new Konva.Line({ points: [dimX - 5, yB, dimX + 5, yB], stroke: dimCol, strokeWidth: 1.2 }));
+      LC.add(new Konva.Line({ points: [dimX - 3, yA + 8, dimX, yA + 2, dimX + 3, yA + 8], stroke: dimCol, strokeWidth: 1.2 }));
+      LC.add(new Konva.Line({ points: [dimX - 3, yB - 8, dimX, yB - 2, dimX + 3, yB - 8], stroke: dimCol, strokeWidth: 1.2 }));
+      const dimTxt = new Konva.Text({ text: (clearHere * 100).toFixed(1) + ' cm', fontSize: 12, fontStyle: 'bold', fill: dimCol, fontFamily: 'ui-monospace,monospace' });
+      dimTxt.x(dimX + 9); dimTxt.y((yA + yB) / 2 - 8);
+      LC.add(dimTxt);
+      const slab = new Konva.Text({ text: inMat ? '至垫面' : '至台面', fontSize: 9, fill: P.muted });
+      slab.x(dimX + 9); slab.y((yA + yB) / 2 + 7);
+      LC.add(slab);
+    }
+
+    // 垫区内：需求高度线 + 不足部分涂红
+    if (inMat) {
+      const yNeed = Y(m.matTop + need);
+      LC.add(new Konva.Line({ points: [sx - 26, yNeed, sx + 26, yNeed], stroke: P.warn, strokeWidth: 1, dash: [4, 4], opacity: .8 }));
+      const shortBy = need - clearHere;
+      if (shortBy > 0 && !winNear) {
+        LC.add(new Konva.Rect({ x: sx - 22, y: ybB, width: 44, height: Math.max(0, yNeed - ybB), fill: P.danger, opacity: .16 }));
+        const lb = new Konva.Text({ text: '缺 ' + (shortBy * 100).toFixed(0) + ' cm', fontSize: 9, fontStyle: 'bold', fill: P.danger });
+        lb.x(dimX + 9); lb.y(yB + 5);
+        LC.add(lb);
+      }
+    }
+    const footY = Y(0) + 7;
+    const chipW = 76;
+    const chipX = Math.max(10, sx - chipW - 8);
+    const tagBg = new Konva.Rect({ x: chipX, y: footY, width: chipW, height: 15, fill: P.panel, opacity: .94, stroke: P.accent, strokeWidth: .8, cornerRadius: 4 });
+    LC.add(tagBg);
+    const tag = new Konva.Text({ text: '剖切 ' + xs.toFixed(2) + ' m', fontSize: 9, fill: P.accent, align: 'center', width: chipW });
+    tag.x(chipX); tag.y(footY + 2);
+    LC.add(tag);
+
+    // ---- 抛接窗口 ----
+    const winX = windowCenter();
+    const uW = SM.underside(m, r, winX);
+    const cW = uW - m.matTop;
+    const badW = cW < need;
+    const wcol = badW ? P.danger : P.ok;
+    const wx = X(winX), wTop = Y(uW), wBot = Y(m.matTop);
+    const wh = Math.max(U(.36), 42);
+    LC.add(new Konva.Rect({ x: wx - wh, y: wTop, width: wh * 2, height: wBot - wTop, fill: wcol, opacity: .08, stroke: wcol, strokeWidth: 1.4, radius: 4, cornerRadius: 6 }));
+    // 读数放在窗口右侧，避让人物
+    const chipW2 = stage.width() < 620 ? 76 : 86;
+    const chipX2 = Math.min(stage.width() - chipW2 - 8, wx + wh + 8);
+    const chipY2 = wTop + 4;
+    LC.add(new Konva.Rect({ x: chipX2, y: chipY2, width: chipW2, height: 34, fill: P.panel, opacity: .95, stroke: wcol, strokeWidth: 1, cornerRadius: 6 }));
+    const wv = new Konva.Text({ text: (cW * 100).toFixed(1) + ' cm', fontSize: stage.width() < 620 ? 11 : 12.5, fontStyle: 'bold', fill: wcol, fontFamily: 'ui-monospace,monospace', align: 'center', width: chipW2 });
+    wv.x(chipX2); wv.y(chipY2 + 3);
+    LC.add(wv);
+    const ws = new Konva.Text({ text: badW ? '净空不足' : '净空足够', fontSize: 8.5, fill: wcol, align: 'center', width: chipW2, opacity: .95 });
+    ws.x(chipX2); ws.y(chipY2 + 19);
+    LC.add(ws);
+    const winTrack = Math.abs(winX - m.catchX) > 0.12;
+    if (winTrack) {
+      LC.add(new Konva.Line({ points: [X(m.catchX), wTop + 30, wx, wTop + 30], stroke: wcol, strokeWidth: 1, dash: [3, 4], opacity: .5 }));
+    }
+    {
+      const txt = winTrack ? '窗口 → ' + winX.toFixed(2) + ' m' : '抛接窗口';
+      const tw = new Konva.Text({ text: txt, fontSize: 9, fill: wcol, align: 'center', width: wh * 2 - 8, opacity: .95 });
+      tw.x(wx - wh + 4); tw.y(wTop + 4);
+      LC.add(tw);
+    }
+  }
+
+  // 抛接窗口：静止时固定在 m.catchX；只有真正被抛起（离静止位 > 0.2 m）的演员才会带走窗口
+  function windowCenter() {
+    for (const a of state.actors) {
+      const rest = a.restFeet == null ? a.feet : a.restFeet;
+      if (a.thrown || a.slack || a.feet > rest + 0.18) {
+        return Math.min(m.L - 0.12, Math.max(0.12, a.x));
+      }
+    }
+    return m.catchX;
+  }
+
+  /* =============== 交互 =============== */
+  function beginDrag(i) {
+    state.dragIdx = i;
+    stage.container().style.cursor = 'grabbing';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchend', endDrag);
+  }
+  function onMove(ev) {
+    if (state.dragIdx < 0) return;
+    if (ev.cancelable && ev.type === 'touchmove') ev.preventDefault();
+    const p = stage.getPointerPosition();
+    if (!p) return;
+    const wx = Math.max(0.05, Math.min(m.L - 0.05, (p.x - PX.ox) / PX.s));
+    state.actors[state.dragIdx].x = wx;
+    reseat(false);
+  }
+  function endDrag() {
+    if (state.dragIdx < 0) return;
+    state.dragIdx = -1;
+    stage.container().style.cursor = '';
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('touchmove', onMove);
+    window.removeEventListener('mouseup', endDrag);
+    window.removeEventListener('touchend', endDrag);
+    reseat(true);
+  }
+
+  /* =============== 重算 =============== */
+  function reseat(doSettle) {
+    if (!state.r) { state.r = SM.solve(m, state.actors.map((a) => ({ x: a.x, P: P0 }))); }
+    if (doSettle) {
+      SM.settle(m, state.actors, 10);
+    } else {
+      state.actors.forEach((a) => {
+        a.T = P0; a.v = 0; a.slack = false; a.thrown = false;
+        a.feet = SM.underside(m, state.r, a.x) - m.headH - m.ropeLen;
+      });
+    }
+    state.r = SM.solve(m, state.actors.map((a) => ({ x: a.x, P: a.T })));
+    drawBeam(); drawSection(); drawActors(); updateUI(); drawChart();
+  }
+
+  /* =============== UI =============== */
+  function updateUI() {
+    const r = state.r, lim = state.limit;
+    const pk = r.peak.v * 1000;
+    $('hudPeak').textContent = pk.toFixed(1);
+    $('hudPeakAt').textContent = r.peak.x.toFixed(2);
+    $('hudWorst').textContent = '#' + (r.worst + 1);
+
+    let html = '';
+    for (let i = 0; i < 4; i++) {
+      const R = r.R[i], pct = r.total > 0 ? R / r.total * 100 : 0;
+      const defl = R / m.k[i] * 1000;
+      const cls = !r.active[i] ? 'off' : (i === r.worst ? 'worst' : (i === r.critical ? 'crit' : ''));
+      const badge = !r.active[i] ? '<span class="badge grey">松弛</span>'
+        : i === r.worst ? '<span class="badge red">最不利</span>'
+        : i === r.critical ? '<span class="badge amber">位移最大</span>' : '<span class="badge teal">正常</span>';
+      html += `<div class="sup ${cls}">` +
+        `<div class="supTop"><span class="supName">吊点 ${i + 1}</span><span class="supX mono">x=${m.xs[i].toFixed(2)} m</span>${badge}</div>` +
+        `<div class="supMain"><b class="mono">${R.toFixed(3)}</b><span class="unit">kN</span><span class="pct mono">${pct.toFixed(1)}%</span></div>` +
+        `<div class="meter"><span class="fill${cls === 'worst' ? ' bad' : ''}" style="width:${Math.min(100, pct * 1.6)}%"></span></div>` +
+        `<div class="supFoot mono">k=${m.k[i]} kN/m · 吊点位移 ${defl.toFixed(1)} mm</div></div>`;
+    }
+    $('supportList').innerHTML = html;
+
+    const avg = r.total / 4;
+    let wi = 0;
+    for (let i = 1; i < 4; i++) if (Math.abs(r.R[i] - avg) > Math.abs(r.R[wi] - avg)) wi = i;
+    $('avgNote').innerHTML = `平均分配：每点 <b class="mono">${avg.toFixed(3)} kN</b>；按刚度分配后最大偏差 <b class="mono">${(Math.abs(r.R[wi] - avg) / avg * 100).toFixed(0)}%</b>（吊点 ${wi + 1}）。` +
+      (r.R[3] === Math.max(...r.R) ? ' <span class="badge red">远端吊点已翻转</span>' : '');
+    $('balance').textContent = Math.abs(r.sumR - r.total) < 0.02 ? 'ΣR = W ✓' : 'Δ ' + (r.sumR - r.total).toFixed(3);
+    $('balance').className = 'badge ' + (Math.abs(r.sumR - r.total) < 0.02 ? 'teal' : 'red');
+
+    const over = pk > lim;
+    $('peakVal').textContent = pk.toFixed(1);
+    $('peakAt').textContent = r.peak.x.toFixed(2);
+    const bar = $('peakBar');
+    bar.style.width = Math.min(100, pk / lim * 100) + '%';
+    bar.className = 'fill' + (over ? ' bad' : '');
+    $('limitTag').textContent = lim;
+    $('peakBand').textContent = redRange();
+
+    const under = SM.underside(m, r, windowCenter());
+    const clear = (under - m.matTop) * 100;
+    const need = m.requiredClear * 100;
+    $('clearVal').textContent = clear.toFixed(1);
+    $('needVal').textContent = Math.round(need);
+    const cb = $('clearBar');
+    cb.style.width = Math.min(100, clear / need * 100) + '%';
+    cb.className = 'fill' + (clear < need ? ' bad' : '');
+    $('clearTag').textContent = clear < need ? '不足 ' + (need - clear).toFixed(1) + ' cm' : '满足';
+    $('clearTag').className = 'badge ' + (clear < need ? 'red' : 'teal');
+    $('hudWin').textContent = clear.toFixed(0);
+    $('hudWinBadge').textContent = clear < need ? '不足' : 'OK';
+    $('hudWinBadge').className = 'badge ' + (clear < need ? 'red' : 'teal');
+    $('hudSum').textContent = r.sumR.toFixed(2) + ' / ' + r.total.toFixed(2);
+    $('sliceVal').textContent = state.sliceX.toFixed(2) + ' m';
+    if ($('detailPanel').classList.contains('open')) drawDetail();
+  }
+
+  function redRange() {
+    const over = [];
+    for (let i = 0; i <= 400; i++) {
+      const x = m.L * i / 400;
+      if (state.r.vAt(x) * 1000 > state.limit) over.push(x);
+    }
+    if (!over.length) return '无';
+    let s = over[0], e = over[0], parts = [];
+    for (let i = 1; i < over.length; i++) {
+      if (over[i] - e > 0.04) { parts.push([s, e]); s = over[i]; }
+      e = over[i];
+    }
+    parts.push([s, e]);
+    return parts.map(([a, b]) => a.toFixed(1) + '–' + b.toFixed(1)).join(' / ') + ' m';
+  }
+
+  /* =============== 曲线图 =============== */
+  function drawChart() {
+    const el = $('mainChart'); if (!el) return;
+    const P = PAL, r = state.r;
+    const w = el.clientWidth || 300, h = 132, padL = 26, padR = 10, padT = 10, padB = 20;
+    const maxV = Math.max(state.limit / 1000 * 1.3, r.peak.v * 1.12, 1e-4);
+    const mx = (x) => padL + (w - padL - padR) * x / m.L;
+    const my = (v) => h - padB - (h - padT - padB) * v / maxV;
+    let s = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="挠度曲线">`;
+    for (let i = 0; i <= 4; i++) {
+      const y = padT + (h - padT - padB) * i / 4;
+      s += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="${P.muted}" stroke-opacity=".16"/>`;
+    }
+    s += `<line x1="${padL}" y1="${my(state.limit / 1000)}" x2="${w - padR}" y2="${my(state.limit / 1000)}" stroke="${P.warn}" stroke-dasharray="4 4"/>`;
+    s += `<text x="${w - padR}" y="${my(state.limit / 1000) - 3}" text-anchor="end" font-size="8" fill="${P.warn}">限值 ${state.limit}</text>`;
+    let path = '', red = '', open = false;
+    for (let i = 0; i <= 160; i++) {
+      const x = m.L * i / 160, v = r.vAt(x);
+      path += (i ? 'L' : 'M') + mx(x).toFixed(1) + ',' + my(v).toFixed(1);
+      if (v * 1000 > state.limit) { red += (open ? 'L' : 'M') + mx(x).toFixed(1) + ',' + my(v).toFixed(1); open = true; } else open = false;
+    }
+    s += `<path d="${path}" fill="none" stroke="${P.accent}" stroke-width="1.7"/>`;
+    if (red) s += `<path d="${red}" fill="none" stroke="${P.danger}" stroke-width="3"/>`;
+    for (let i = 0; i < 4; i++) {
+      const x = mx(m.xs[i]), y = my(r.vAt(m.xs[i]));
+      s += `<line x1="${x}" y1="${h - padB}" x2="${x}" y2="${y}" stroke="${P.steel2}" stroke-dasharray="2 3" opacity=".8"/>`;
+      s += `<circle cx="${x}" cy="${y}" r="2.4" fill="${i === r.worst ? P.danger : P.accent}"/>`;
+      s += `<text x="${x}" y="${h - 6}" text-anchor="middle" font-size="8" fill="${P.muted}">${i + 1}</text>`;
+    }
+    const px = mx(r.peak.x), py = my(r.peak.v);
+    s += `<circle cx="${px}" cy="${py}" r="3.2" fill="${r.peak.v * 1000 > state.limit ? P.danger : P.accent}"/>`;
+    s += `<text x="${px > w * .6 ? px - 6 : px + 6}" y="${py - 4}" text-anchor="${px > w * .6 ? 'end' : 'start'}" font-size="8.5" fill="${r.peak.v * 1000 > state.limit ? P.danger : P.accent}">${(r.peak.v * 1000).toFixed(1)} @ ${r.peak.x.toFixed(2)}</text>`;
+    s += '</svg>';
+    el.innerHTML = s;
+  }
+
+  function drawDetail() {
+    const el = $('detailChart'); if (!el) return;
+    const P = PAL, r = state.r;
+    const w = Math.max(280, el.clientWidth || 300), h = 210, padL = 36, padR = 12, padT = 14, padB = 24;
+    const maxV = Math.max(state.limit / 1000 * 1.2, r.peak.v * 1.12, 1e-4);
+    const mx = (x) => padL + (w - padL - padR) * x / m.L;
+    const my = (v) => h - padB - (h - padT - padB) * v / maxV;
+    let s = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="挠度曲线详图">`;
+    for (let i = 0; i <= 5; i++) {
+      const v = maxV * i / 5, y = my(v);
+      s += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="${P.muted}" stroke-opacity=".15"/>`;
+      s += `<text x="${padL - 5}" y="${y + 3}" text-anchor="end" font-size="7.5" fill="${P.muted}">${(v * 1000).toFixed(0)}</text>`;
+    }
+    s += `<line x1="${padL}" y1="${my(state.limit / 1000)}" x2="${w - padR}" y2="${my(state.limit / 1000)}" stroke="${P.warn}" stroke-dasharray="4 4"/>`;
+    let path = '', red = '', open = false;
+    for (let i = 0; i <= 200; i++) {
+      const x = m.L * i / 200, v = r.vAt(x);
+      path += (i ? 'L' : 'M') + mx(x).toFixed(1) + ',' + my(v).toFixed(1);
+      if (v * 1000 > state.limit) { red += (open ? 'L' : 'M') + mx(x).toFixed(1) + ',' + my(v).toFixed(1); open = true; } else open = false;
+    }
+    s += `<path d="${path}" fill="none" stroke="${P.accent}" stroke-width="1.9"/>`;
+    if (red) s += `<path d="${red}" fill="none" stroke="${P.danger}" stroke-width="3.4"/>`;
+    for (let i = 0; i < 4; i++) {
+      const x = mx(m.xs[i]), y = my(r.vAt(m.xs[i]));
+      s += `<line x1="${x}" y1="${h - padB}" x2="${x}" y2="${y}" stroke="${P.steel2}" stroke-dasharray="2 3" opacity=".8"/>`;
+      s += `<text x="${x}" y="${h - 8}" text-anchor="middle" font-size="8" fill="${P.muted}">吊${i + 1}</text>`;
+    }
+    const px = mx(r.peak.x), py = my(r.peak.v);
+    s += `<circle cx="${px}" cy="${py}" r="3.8" fill="${P.danger}"/>`;
+    s += `<text x="${Math.min(w - 96, px + 7)}" y="${py - 6}" font-size="9" fill="${P.danger}">峰值 ${(r.peak.v * 1000).toFixed(1)} mm @ ${r.peak.x.toFixed(2)} m</text>`;
+    s += '</svg>';
+    el.innerHTML = s;
+  }
+
+  /* =============== 抛接动画 =============== */
+  let raf = null, last = 0;
+  function tick(ts) {
+    if (!state.playing) return;
+    const dt = Math.min(0.05, last ? (ts - last) / 1000 : 1 / 60);
+    last = ts;
+    state.accum += dt;
+    let guard = 0;
+    while (state.accum >= 1 / 60 && guard++ < 8) {
+      const before = state.actors[1].x;
+      SM.stepDynamics(m, state.actors, 1 / 60, 16);
+      const b = state.actors[1];
+      // 顶到梁：封顶，不再上冲
+      const under = SM.underside(m, state.r, b.x);
+      if (b.feet + m.headH > under - 0.02) {
+        b.feet = under - 0.02 - m.headH;
+        if (b.v > 0) b.v = 0;
+      }
+      // 到达抛接窗口：被接住，横向停住
+      if (!b.caught && ((before - m.catchX) * (b.x - m.catchX) <= 0 || (b.v <= 0 && Math.abs(b.x - m.catchX) < 0.30))) {
+        b.x = m.catchX; b.vx = 0; b.caught = true;
+      }
+      state.accum -= 1 / 60;
+    }
+    state.r = SM.solve(m, state.actors.map((a) => ({ x: a.x, P: a.T })));
+    state.t += dt;
+    drawBeam(); drawSection(); drawActors(); updateUI(); drawChart();
+    if (state.t > 4.8) { finishThrow(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function startThrow() {
+    if (state.playing) return;
+    SM.settle(m, state.actors, 10);
+    state.r = SM.solve(m, state.actors.map((a) => ({ x: a.x, P: a.T })));
+    const b = state.actors[1];
+    b.slack = true; b.thrown = true; b.caught = false;
+    const apex = 1.05;
+    b.v = Math.sqrt(2 * SM.G * apex);
+    const tApex = b.v / SM.G;
+    const dx = m.catchX - b.x;
+    b.vx = Math.max(-6.5, Math.min(6.5, dx / tApex));
+    state.playing = true; state.t = 0; state.accum = 0; last = 0;
+    $('btnThrow').classList.add('on');
+    raf = requestAnimationFrame(tick);
+    toast('把乙抛向窗口：窗口跟过去，注意梁下垂吃掉多少净空');
+  }
+  function finishThrow() {
+    state.playing = false;
+    if (raf) cancelAnimationFrame(raf);
+    $('btnThrow').classList.remove('on');
+    state.actors[1].v = 0; state.actors[1].vx = 0;
+    SM.settle(m, state.actors, 10);
+    reseat(true);
+  }
+
+  /* =============== 按钮 / 滑块 =============== */
+  function applyPreset() {
+    if (state.playing) finishThrow();
+    state.actors[0].x = 0.98;
+    state.actors[1].x = 1.84;
+    state.sliceX = 3.20;
+    $('slice').value = Math.round(state.sliceX / m.L * 100);
+    reseat(true);
+    toast('偏载布局：两人挤在左端。把乙拖过 7.8 m，看吊点 4 翻转为最大。');
+  }
+  function applySymmetric() {
+    if (state.playing) finishThrow();
+    state.actors[0].x = 3.30;
+    state.actors[1].x = 4.50;
+    state.sliceX = 3.20;
+    $('slice').value = Math.round(state.sliceX / m.L * 100);
+    reseat(true);
+    toast('中跨重载：峰值 128 mm 超限，窗口净空掉到 293 cm');
+  }
+  $('btnSym').addEventListener('click', applySymmetric);
+
+  $('btnThrow').addEventListener('click', startThrow);
+  $('btnStop').addEventListener('click', () => { if (state.playing) finishThrow(); SM.settle(m, state.actors, 10); reseat(true); toast('已复位'); });
+  $('presetBtn').addEventListener('click', applyPreset);
+
+  const sliceEl = $('slice');
+  sliceEl.addEventListener('input', () => {
+    state.sliceX = +sliceEl.value / 100 * m.L;
+    drawSection(); updateUI();
+  });
+  const limEl = $('limit');
+  limEl.value = state.limit;
+  $('limitVal').textContent = state.limit;
+  limEl.addEventListener('input', () => {
+    state.limit = Math.max(10, Math.min(200, +limEl.value));
+    $('limitVal').textContent = state.limit;
+    drawBeam(); drawSection(); updateUI(); drawChart();
+  });
+  const kEl = $('kScale');
+  kEl.addEventListener('input', () => {
+    m.kScale = +kEl.value / 100;
+    $('kScaleVal').textContent = m.kScale.toFixed(2) + '×';
+    reseat(true);
+  });
+  $('btnDetail').addEventListener('click', () => {
+    const p = $('detailPanel'), on = p.classList.toggle('open');
+    $('btnDetail').setAttribute('aria-expanded', on ? 'true' : 'false');
+    $('btnDetail').textContent = on ? '收起' : '展开';
+    if (on) drawDetail();
+  });
+
+  /* =============== toast =============== */
+  let tT = null;
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(tT); tT = setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  /* =============== 尺寸 =============== */
+  let rz = null;
+  function resize() {
+    const w = stagewrap.clientWidth, h = stagewrap.clientHeight;
+    if (!w || !h) return;
+    stage.width(w); stage.height(h);
+    layout();
+    drawBG(); drawBeam(); drawSection(); drawActors(); updateUI(); drawChart();
+  }
+  window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(resize, 70); });
+
+  /* =============== 启动 =============== */
+  function boot() {
+    layout();
+    stage.width(stagewrap.clientWidth || 800);
+    stage.height(stagewrap.clientHeight || 460);
+    SM.settle(m, state.actors, 10);
+    state.r = SM.solve(m, state.actors.map((a) => ({ x: a.x, P: a.T })));
+    sliceEl.value = Math.round(state.sliceX / m.L * 100);
+    drawBG(); drawBeam(); drawSection(); drawActors(); updateUI(); drawChart();
+  }
+  boot();
+  setTimeout(() => { resize(); if (window.ResizeObserver) new ResizeObserver(() => { clearTimeout(rz); rz = setTimeout(resize, 70); }).observe(stagewrap); }, 40);
+  window.addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.key === 'r' || e.key === 'R') { applyPreset(); return; }
+    if (e.key === ' ') { e.preventDefault(); startThrow(); }
+  });
+  window.__stage = { m, state, SM, reseat, drawBG, drawBeam, drawSection, drawActors, updateUI, layout, resize, applyPreset, finishThrow, PX, X, Y, U };
+})();
+</script>

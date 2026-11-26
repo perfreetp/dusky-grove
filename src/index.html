@@ -1,0 +1,284 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>高空舞台梁剖面</title>
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#05090f; --bg2:#091320; --panel:#0b1522; --panel2:#0e1b2c; --panel3:#08111d;
+  --ink:#e9f1fb; --ink2:#a8bacc; --muted:#6a7f97; --line:#1a2841; --line2:#283b58;
+  --steel:#7ea5cc; --steel2:#48698e; --steelTop:#c0d7f1;
+  --accent:#33dcc0; --amber:#f3b463; --danger:#ff5f6d; --ok:#43df9a; --warn:#ffc063;
+  --mat:#c8904f; --deck:#131c2a; --stagebg:#03070c;
+  --grid:rgba(150,190,240,.055);
+  --shadow:0 20px 44px rgba(0,0,0,.5);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme: light;
+    --bg:#eef3f9; --bg2:#e4ebf4; --panel:#ffffff; --panel2:#f5f8fc; --panel3:#eef3fa;
+    --ink:#0c1521; --ink2:#3b4e65; --muted:#69798d; --line:#d9e2ed; --line2:#bfcedd;
+    --steel:#4f769c; --steel2:#809bb6; --steelTop:#2c4a67;
+    --accent:#0d9b84; --amber:#b3731c; --danger:#d9293f; --ok:#0f8f5d; --warn:#a86911;
+    --mat:#b0763a; --deck:#dbe4ef; --stagebg:#f8fbfe;
+    --grid:rgba(30,60,100,.085);
+    --shadow:0 14px 30px rgba(30,50,80,.10);
+  }
+}
+:root[data-theme="light"]{
+  color-scheme: light;
+  --bg:#eef3f9; --bg2:#e4ebf4; --panel:#ffffff; --panel2:#f5f8fc; --panel3:#eef3fa;
+  --ink:#0c1521; --ink2:#3b4e65; --muted:#69798d; --line:#d9e2ed; --line2:#bfcedd;
+  --steel:#4f769c; --steel2:#809bb6; --steelTop:#2c4a67;
+  --accent:#0d9b84; --amber:#b3731c; --danger:#d9293f; --ok:#0f8f5d; --warn:#a86911;
+  --mat:#b0763a; --deck:#dbe4ef; --stagebg:#f8fbfe;
+  --grid:rgba(30,60,100,.085);
+  --shadow:0 14px 30px rgba(30,50,80,.10);
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#05090f; --bg2:#091320; --panel:#0b1522; --panel2:#0e1b2c; --panel3:#08111d;
+  --ink:#e9f1fb; --ink2:#a8bacc; --muted:#6a7f97; --line:#1a2841; --line2:#283b58;
+  --steel:#7ea5cc; --steel2:#48698e; --steelTop:#c0d7f1;
+  --accent:#33dcc0; --amber:#f3b463; --danger:#ff5f6d; --ok:#43df9a; --warn:#ffc063;
+  --mat:#c8904f; --deck:#131c2a; --stagebg:#03070c;
+  --grid:rgba(150,190,240,.055);
+  --shadow:0 20px 44px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; color:var(--ink);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:
+    radial-gradient(980px 520px at 10% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 62%),
+    radial-gradient(760px 460px at 98% 2%, color-mix(in srgb, var(--steel) 11%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+  background-attachment:fixed;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-block:14px 16px;
+}
+.mono{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-variant-numeric:tabular-nums}
+
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 20px;margin-bottom:12px}
+.brand h1{font-size:19px;line-height:1.25;margin:0;font-weight:640;letter-spacing:.005em}
+.brand p{margin:4px 0 0;color:var(--ink2);font-size:12px;max-width:60ch}
+.kicker{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.kicker i{width:16px;height:1px;background:var(--accent);display:block}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+button{
+  font:inherit;font-size:12.5px;color:var(--ink);background:var(--panel2);border:1px solid var(--line2);
+  border-radius:9px;padding:7px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+  white-space:nowrap;transition:border-color .15s,background .15s,transform .1s
+}
+button:hover{border-color:var(--accent);background:var(--panel)}
+button:active{transform:translateY(1px)}
+button.primary{background:color-mix(in srgb, var(--accent) 16%, var(--panel));border-color:color-mix(in srgb, var(--accent) 55%, var(--line2));font-weight:640}
+button.on{background:var(--danger);border-color:var(--danger);color:#fff}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.shell{display:grid;grid-template-columns:minmax(0,1fr) 344px;gap:12px;align-items:start}
+@media (max-width: 940px){ .shell{grid-template-columns:minmax(0,1fr)} }
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel3)}
+.card-h h2{margin:0;font-size:12px;font-weight:620;letter-spacing:.02em;color:var(--ink2)}
+.card-h .tag{margin-left:auto;font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px}
+
+.stagewrap{position:relative;background:var(--stagebg);height:clamp(420px,58vh,620px);min-height:380px}
+#konva{position:absolute;inset:0;touch-action:none}
+.readout{display:flex;flex-wrap:wrap;gap:6px;padding:9px 12px 0}
+.hchip{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:10.5px;display:flex;gap:6px;align-items:baseline}
+.hchip span{color:var(--muted);font-size:9.5px}
+.hchip b{font-size:12px}
+.badge{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:5px;letter-spacing:.03em;border:1px solid transparent}
+.badge.teal{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.badge.red{background:color-mix(in srgb,var(--danger) 22%,transparent);color:var(--danger)}
+.badge.grey{background:color-mix(in srgb,var(--muted) 20%,transparent);color:var(--muted)}
+.badge.amber{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.hint{position:absolute;right:10px;top:10px;z-index:4;font-size:10px;color:var(--muted);text-align:right;line-height:1.55;pointer-events:none}
+
+.controls{display:grid;gap:11px;padding:12px;background:var(--panel3)}
+.row{display:grid;grid-template-columns:104px minmax(0,1fr) 62px;gap:10px;align-items:center}
+.row label{font-size:11px;color:var(--ink2);display:flex;flex-direction:column;gap:1px}
+.row label small{font-size:9.5px;color:var(--muted)}
+.row output{text-align:right;font-size:12px;color:var(--accent)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:var(--line2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;margin-top:-5.5px;border-radius:50%;background:var(--panel);border:2px solid var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent);cursor:pointer}
+input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:var(--line2)}
+input[type=range]::-moz-range-progress{height:4px;border-radius:4px;background:var(--accent)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--panel);border:2px solid var(--accent);cursor:pointer}
+input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:8px}
+
+.inspector{display:grid;gap:12px}
+.fig{display:grid;gap:9px;padding:12px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.metric{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 9px;min-width:0}
+.metric .k{font-size:10px;color:var(--muted)}
+.metric .v{font-size:19px;font-weight:640;letter-spacing:-.01em;line-height:1.15;margin-top:2px}
+.metric .v small{font-size:10px;font-weight:500;color:var(--muted);margin-left:3px}
+.meter{height:5px;border-radius:5px;background:var(--line);margin-top:7px;overflow:hidden;position:relative}
+.meter .fill{position:absolute;inset:0 auto 0 0;border-radius:5px;background:var(--ok);transition:width .25s,background .25s}
+.meter .fill.bad{background:var(--danger)}
+.note{font-size:10.5px;color:var(--ink2);line-height:1.6}
+.note b{color:var(--ink)}
+
+.supports{display:grid;gap:7px;padding:12px}
+.sup{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--steel2);border-radius:9px;padding:7px 9px 8px}
+.sup.worst{border-left-color:var(--danger);background:color-mix(in srgb,var(--danger) 7%,var(--panel2))}
+.sup.crit{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 6%,var(--panel2))}
+.sup.off{opacity:.55;border-left-color:var(--muted)}
+.supTop{display:flex;align-items:baseline;gap:7px;font-size:11px}
+.supTop .supName{font-weight:600}
+.supTop .supX{font-size:9.5px;color:var(--muted)}
+.supTop .badge{margin-left:auto}
+.supMain{display:flex;align-items:baseline;gap:4px;margin-top:2px}
+.supMain b{font-size:17px;font-weight:640;letter-spacing:-.01em}
+.supMain .unit{font-size:9.5px;color:var(--muted)}
+.supMain .pct{margin-left:auto;font-size:10px;color:var(--ink2)}
+.sup .meter{margin:5px 0 4px}
+.supFoot{font-size:9.5px;color:var(--muted)}
+.cmp{padding:0 12px 12px;font-size:10.5px;color:var(--ink2);line-height:1.62}
+
+.chartbox{padding:9px 10px 6px}
+.chartbox svg{display:block;width:100%;height:auto;overflow:visible}
+.chart-legend{display:flex;gap:11px;flex-wrap:wrap;font-size:9.5px;color:var(--muted);padding:0 12px 10px}
+.chart-legend i{display:inline-block;width:12px;height:2px;vertical-align:middle;margin-right:4px}
+
+.detail{grid-column:1/-1}
+.detail .body{display:none;padding:0 12px 12px}
+.detail.open .body{display:block}
+.detail .body svg{width:100%;display:block}
+
+.toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,14px);background:var(--panel);border:1px solid var(--accent);
+  color:var(--ink);padding:9px 14px;border-radius:10px;font-size:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;
+  transition:opacity .22s,transform .22s;z-index:30;max-width:calc(100vw - 34px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.foot{margin-top:12px;font-size:10px;color:var(--muted);line-height:1.65;max-width:92ch}
+.foot b{color:var(--ink2);font-weight:600}
+</style>
+
+<div class="top">
+  <div class="brand">
+    <span class="kicker"><i></i>结构剖面 · 弹性支座梁</span>
+    <h1>高空舞台 · 钢梁与四个吊点</h1>
+    <p>梁按 Euler–Bernoulli 弹性支座简化；四个吊点按各自刚度分担载荷，不是平均分，且只受拉、可松弛。拖动演员，梁挠度与各吊点反力实时重算。</p>
+  </div>
+  <div class="top-actions">
+    <button id="presetBtn" title="载入偏载布局（R）">载入偏载布局</button>
+    <button id="btnSym" title="两人站在中跨，观察跨中挠度">中跨重载</button>
+    <button id="btnThrow" class="primary" title="抛起演员乙（空格）">抛起一次</button>
+    <button id="btnStop">复位</button>
+  </div>
+</div>
+
+<div class="shell">
+  <div class="card">
+    <div class="card-h"><h2>纵向剖面 · 梁长 8.40 m</h2><span class="tag">几何真实比例</span></div>
+    <div class="stagewrap" id="stagewrap">
+      <div id="konva"></div>
+      <div class="hint">拖动演员改变站位<br>滑块沿梁长剖切</div>
+    </div>
+    <div class="readout">
+      <div class="hchip"><span>挠度峰值</span><b id="hudPeak" class="mono">—</b><span>mm</span></div>
+      <div class="hchip"><span>位置</span><b id="hudPeakAt" class="mono">—</b><span>m</span></div>
+      <div class="hchip"><span>最不利</span><b id="hudWorst" class="mono">—</b></div>
+      <div class="hchip"><span>ΣR / W</span><b id="hudSum" class="mono">—</b><span>kN</span></div>
+      <div class="hchip"><span>窗口净空</span><b id="hudWin" class="mono">—</b><span>cm</span><span id="hudWinBadge" class="badge teal">OK</span></div>
+    </div>
+    <div class="controls">
+      <div class="row">
+        <label for="slice">剖切位置<small>沿梁长切开</small></label>
+        <input id="slice" type="range" min="0" max="100" step="1" value="38" aria-label="剖切位置">
+        <output id="sliceVal" class="mono">—</output>
+      </div>
+      <div class="row">
+        <label for="limit">挠度限值<small>mm</small></label>
+        <input id="limit" type="range" min="20" max="140" step="1" aria-label="挠度限值">
+        <output id="limitVal" class="mono">—</output>
+      </div>
+      <div class="row">
+        <label for="kScale">吊点刚度<small>四吊点同比例缩放</small></label>
+        <input id="kScale" type="range" min="40" max="200" step="5" aria-label="吊点整体刚度倍率">
+        <output id="kScaleVal" class="mono">1.00×</output>
+      </div>
+    </div>
+  </div>
+
+  <div class="inspector">
+    <div class="card">
+      <div class="card-h"><h2>四个吊点 · 反力</h2><span class="tag" id="balance">ΣR = W</span></div>
+      <div class="supports" id="supportList"></div>
+      <div class="cmp" id="avgNote"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>挠度曲线</h2><span class="tag">红段 = 超限</span></div>
+      <div class="chartbox" id="mainChart"></div>
+      <div class="chart-legend">
+        <span><i style="background:var(--accent)"></i>挠度 v(x)</span>
+        <span><i style="background:var(--danger)"></i>超限</span>
+        <span><i style="background:var(--warn)"></i>限值</span>
+        <span><i style="background:var(--steel2)"></i>吊点</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>抛接窗口净空</h2><span class="tag" id="clearTag">—</span></div>
+      <div class="fig">
+        <div class="metrics">
+          <div class="metric">
+            <div class="k">实测净空</div>
+            <div class="v"><span id="clearVal" class="mono">—</span><small>cm</small></div>
+            <div class="meter"><span id="clearBar" class="fill"></span></div>
+          </div>
+          <div class="metric">
+            <div class="k">需求净空</div>
+            <div class="v"><span id="needVal" class="mono">—</span><small>cm</small></div>
+            <div class="note" style="margin-top:5px">脚离垫 + 身高 + 余量</div>
+          </div>
+        </div>
+        <div class="note">窗口中心在 4.20 m，位于两中吊点之间最软的一段梁上，梁下垂最容易吃掉这里的净空。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>挠度峰值</h2><span class="tag">限值 <b id="limitTag" class="mono">—</b> mm</span></div>
+      <div class="fig">
+        <div class="metrics">
+          <div class="metric">
+            <div class="k">峰值</div>
+            <div class="v"><span id="peakVal" class="mono">—</span><small>mm</small></div>
+            <div class="meter"><span id="peakBar" class="fill"></span></div>
+          </div>
+          <div class="metric">
+            <div class="k">位置</div>
+            <div class="v"><span id="peakAt" class="mono">—</span><small>m</small></div>
+            <div class="note" style="margin-top:5px">超限区段 <span id="peakBand" class="mono">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card detail" id="detailPanel">
+      <div class="card-h"><h2>放大曲线</h2>
+        <button id="btnDetail" style="margin-left:auto;padding:3px 9px;font-size:11px" aria-expanded="false" aria-controls="detailBody">展开</button>
+      </div>
+      <div class="body" id="detailBody"><div id="detailChart"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  建议路径：① 按「载入偏载布局」，两人（0.98 / 1.84 m）挤在左端，吊点 2 反力最大 2.16 kN，最远端吊点 4 只有 0.65 kN；
+  ② 把演员乙拖过 <b>7.8 m</b>，吊点 4 反力翻转成全场最大（约 1.7 kN 以上），同时挠度峰值从 2.1 m 挪到中跨 4.1 m 附近；
+  ③ 按「中跨重载」（两人站 3.30 / 4.50 m），峰值升到 128 mm、超过 90 mm 限值，窗口净空从 299 cm 掉到 293 cm；
+  ④ 拖动「剖切位置」滑块，站在窗口旁看净空读数是否被梁的下垂吃掉。
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/konva/10.7.1/konva.min.js"></script>
+<script>/*__MODEL__*/</script>
+<script>/*__APP__*/</script>
