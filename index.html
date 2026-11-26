@@ -1,0 +1,1490 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="claude:viewport-fit-sides" content="cover" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='7' width='22' height='18' rx='4' fill='%230ea5e9'/%3E%3Crect x='9' y='11' width='14' height='3' rx='1.5' fill='white'/%3E%3Crect x='9' y='17' width='10' height='2' rx='1' fill='%23bae6fd'/%3E%3C/svg%3E" />
+<title>叠片电芯极片错位分布场</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #060b16;
+    --bg-grid: #08111f;
+    --panel: rgba(14, 23, 40, 0.96);
+    --card: rgba(255, 255, 255, 0.035);
+    --line: #22314d;
+    --line-strong: #33476b;
+    --text: #eaf2ff;
+    --muted: #93a6c4;
+    --faint: #637796;
+    --cyan: #38bdf8;
+    --violet: #a78bfa;
+    --good: #22c55e;
+    --lime: #a3e635;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+    --radius: 20px;
+    font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    color: var(--text);
+    background:
+      radial-gradient(circle at 18% -10%, rgba(56, 189, 248, 0.16), transparent 34rem),
+      radial-gradient(circle at 92% 0%, rgba(129, 140, 248, 0.14), transparent 30rem),
+      linear-gradient(180deg, #08101d 0%, #050914 100%);
+    padding:
+      max(10px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+
+  button, input { font: inherit; }
+  button { -webkit-tap-highlight-color: transparent; }
+
+  .app {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 2px 2px 10px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  }
+
+  .brand { min-width: 0; }
+  .brand .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    color: #7dd3fc;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .brand .eyebrow::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--cyan);
+    box-shadow: 0 0 16px var(--cyan);
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: clamp(18px, 2vw, 25px);
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+  }
+  .brand p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .chip {
+    min-width: 92px;
+    padding: 8px 11px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .chip span { display: block; color: var(--faint); font-size: 10px; font-weight: 700; }
+  .chip b { display: block; margin-top: 2px; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .chip.good b { color: #86efac; }
+  .chip.warn b { color: #fcd34d; }
+  .chip.bad b { color: #fca5a5; }
+  .chip.cyan b { color: #7dd3fc; }
+
+  .layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 378px;
+    gap: 14px;
+  }
+
+  .stage-wrap {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background:
+      radial-gradient(circle at 50% 42%, rgba(14, 165, 233, 0.10), transparent 44%),
+      linear-gradient(180deg, var(--bg-grid), #060c18);
+    box-shadow: var(--shadow);
+  }
+  .pixi-host { position: absolute; inset: 0; }
+  .pixi-host canvas { display: block; touch-action: none; }
+
+  .overlay {
+    position: absolute;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .heat-legend {
+    top: 14px;
+    left: 14px;
+    width: 218px;
+    padding: 11px 12px;
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    border-radius: 14px;
+    background: rgba(6, 12, 24, 0.76);
+    backdrop-filter: blur(12px);
+  }
+  .legend-title { margin-bottom: 8px; color: #dbeafe; font-size: 11px; font-weight: 800; }
+  .gradient-bar {
+    height: 9px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #10b981 0%, #65a30d 42%, #f59e0b 70%, #ef4444 100%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+  }
+  .legend-labels { display: flex; justify-content: space-between; margin-top: 5px; color: var(--muted); font-size: 10px; }
+
+  .chain-legend {
+    left: 14px;
+    bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    max-width: calc(100% - 150px);
+    padding: 9px 11px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 13px;
+    background: rgba(6, 12, 24, 0.72);
+    backdrop-filter: blur(12px);
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .chain-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .line-swatch { width: 18px; height: 3px; border-radius: 99px; background: #67e8f9; box-shadow: 0 0 10px #22d3ee; }
+  .line-swatch.yellow { background: #fde047; box-shadow: 0 0 10px #facc15; }
+
+  .hint {
+    position: absolute;
+    z-index: 3;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    padding: 8px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 999px;
+    background: rgba(6, 12, 24, 0.72);
+    color: #b8c8e4;
+    font-size: 11px;
+    white-space: nowrap;
+    backdrop-filter: blur(12px);
+  }
+
+  .view-tools {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 4;
+  }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    color: #dbeafe;
+    background: rgba(13, 24, 43, 0.88);
+    box-shadow: 0 8px 24px rgba(0,0,0,.24);
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 800;
+  }
+  .icon-btn:hover, .btn:hover { border-color: rgba(125, 211, 252, 0.55); background-color: rgba(30, 58, 95, 0.95); }
+  .icon-btn:active, .btn:active { transform: translateY(1px); }
+
+  .load-error {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    padding: 32px;
+    text-align: center;
+    color: #fecaca;
+    background: #0b1220;
+  }
+  .hidden { display: none !important; }
+
+  .panel {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, rgba(17, 28, 49, 0.97), rgba(10, 18, 33, 0.97));
+    box-shadow: var(--shadow);
+    scrollbar-width: thin;
+    scrollbar-color: #2b3d61 transparent;
+  }
+  .panel::-webkit-scrollbar { width: 8px; }
+  .panel::-webkit-scrollbar-thumb { background: #2b3d61; border-radius: 99px; }
+
+  .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .panel-head h2 { margin: 0; font-size: 16px; }
+  .panel-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+  .live {
+    flex: 0 0 auto;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.14);
+    border: 1px solid rgba(74, 222, 128, 0.35);
+    color: #86efac;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+  }
+
+  .card {
+    margin-bottom: 12px;
+    padding: 13px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--card);
+  }
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    color: #d8e7ff;
+    font-size: 13px;
+    font-weight: 850;
+  }
+  .card-title .tag {
+    margin-left: auto;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    padding: 9px 12px;
+    color: var(--text);
+    background: linear-gradient(180deg, #1b2c4a, #15233c);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, transform .05s ease;
+  }
+  .btn.primary {
+    flex: 1 1 190px;
+    border-color: rgba(125, 211, 252, 0.38);
+    background: linear-gradient(135deg, #0369a1, #4338ca);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+  }
+  .preset-note { margin: 10px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+
+  .control { margin: 13px 0; }
+  .control:first-child { margin-top: 2px; }
+  .control-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 7px;
+    font-size: 12px;
+    color: #c8d7f1;
+    font-weight: 750;
+  }
+  .control-head output { color: #7dd3fc; font-variant-numeric: tabular-nums; font-weight: 900; }
+  .control input[type="range"] { width: 100%; margin: 0; accent-color: var(--cyan); cursor: pointer; }
+  .control-hint { display: block; margin-top: 5px; color: var(--faint); font-size: 10.5px; line-height: 1.45; }
+  .range-labels { display: flex; justify-content: space-between; margin-top: 3px; color: var(--faint); font-size: 10px; }
+
+  .check-row { display: flex; align-items: center; gap: 9px; margin-top: 11px; color: #c8d7f1; font-size: 12px; cursor: pointer; }
+  .check-row input { width: 16px; height: 16px; accent-color: var(--cyan); }
+
+  .inspector-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+  .inspector-head h3 { margin: 2px 0 0; font-size: 17px; }
+  .eyebrow { color: var(--faint); font-size: 10px; font-weight: 900; letter-spacing: .14em; }
+  .badge {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 900;
+    border: 1px solid currentColor;
+  }
+  .badge.good { color: #86efac; background: rgba(34,197,94,.12); }
+  .badge.warn { color: #fcd34d; background: rgba(245,158,11,.13); }
+  .badge.bad { color: #fca5a5; background: rgba(239,68,68,.15); }
+
+  .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .metric {
+    min-width: 0;
+    padding: 8px 9px;
+    border: 1px solid rgba(255,255,255,.055);
+    border-radius: 12px;
+    background: rgba(0,0,0,.18);
+  }
+  .metric span { display: block; color: var(--faint); font-size: 10px; font-weight: 700; }
+  .metric b {
+    display: block;
+    margin-top: 3px;
+    color: #eaf2ff;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .contrib-line {
+    margin-top: 9px;
+    padding: 9px 10px;
+    border-radius: 12px;
+    background: #07101f;
+    border: 1px solid var(--line);
+    color: #a9c4ef;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    line-height: 1.55;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .corner-table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .corner-table th { color: var(--faint); font-size: 10px; font-weight: 800; text-align: right; padding: 5px 4px; border-bottom: 1px solid var(--line); }
+  .corner-table th:first-child, .corner-table td:first-child { text-align: left; }
+  .corner-table td { padding: 7px 4px; text-align: right; border-bottom: 1px solid rgba(148,163,184,.10); color: #d9e7ff; }
+  .corner-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 2px; }
+
+  .chart-wrap { margin-top: 4px; }
+  .chart {
+    position: relative;
+    height: 94px;
+    margin-top: 12px;
+    border-left: 1px solid rgba(148,163,184,.22);
+    border-bottom: 1px solid rgba(148,163,184,.22);
+    background: repeating-linear-gradient(to top, rgba(255,255,255,.045) 0 1px, transparent 1px 23.5px);
+  }
+  .bars { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 2px; padding: 0 2px; }
+  .bar {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+  }
+  .bar-fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 3px;
+    border-radius: 4px 4px 0 0;
+    transition: height .08s linear;
+  }
+  .bar:hover .bar-fill { filter: brightness(1.28); }
+  .bar.selected { outline: 2px solid #fff; outline-offset: 1px; z-index: 2; }
+  .threshold-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    border-top: 1px dashed #fca5a5;
+    pointer-events: none;
+  }
+  .threshold-line span {
+    position: absolute;
+    right: 0;
+    top: -17px;
+    color: #fca5a5;
+    font-size: 10px;
+    font-weight: 800;
+  }
+  .chart-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; color: var(--faint); font-size: 10px; }
+
+  .formula {
+    margin: 0;
+    padding: 10px 11px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #07101f;
+    color: #b7cff7;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+  .formula b { color: #7dd3fc; }
+
+  @media (max-width: 1060px) {
+    body { overflow: auto; height: auto; min-height: 100dvh; }
+    .app { height: auto; min-height: 100%; }
+    .topbar { flex-direction: column; align-items: stretch; }
+    .stats { justify-content: flex-start; }
+    .layout { grid-template-columns: minmax(0, 1fr); flex: none; }
+    .stage-wrap { height: 60dvh; min-height: 410px; }
+    .panel { overflow: visible; }
+  }
+
+  @media (max-width: 560px) {
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .chip { min-width: 0; }
+    .stage-wrap { height: 56dvh; min-height: 350px; border-radius: 16px; }
+    .panel { border-radius: 16px; padding: 13px; }
+    .heat-legend { width: 188px; }
+    .chain-legend { display: none; }
+    .hint { bottom: 12px; max-width: calc(100% - 24px); white-space: normal; border-radius: 13px; text-align: center; }
+    .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="eyebrow">Lamination Misalignment Field</div>
+      <h1>叠片电芯 · 极片错位分布场</h1>
+      <p>28 片蛇形展开阵列；错位 = 对位线性累积 + 上一片传递 + 隔膜张力中心回弹</p>
+    </div>
+    <div class="stats" aria-live="polite">
+      <div class="chip cyan"><span>最大累计错位</span><b id="statMax">--</b></div>
+      <div class="chip good"><span>合格</span><b id="statOk">--</b></div>
+      <div class="chip warn"><span>临界</span><b id="statWarn">--</b></div>
+      <div class="chip bad"><span>超差</span><b id="statBad">--</b></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage-wrap" id="stageWrap" aria-label="极片错位二维阵列">
+      <div class="pixi-host" id="pixiHost"></div>
+
+      <div class="overlay heat-legend">
+        <div class="legend-title">错位热力 / 工艺公差</div>
+        <div class="gradient-bar"></div>
+        <div class="legend-labels"><span>0</span><span>0.85Tol</span><span>Tol</span><span>&gt;Tol</span></div>
+      </div>
+
+      <div class="overlay chain-legend">
+        <span><i class="line-swatch"></i>首片 → 选中片传递链</span>
+        <span><i class="line-swatch yellow"></i>四角相对理想位置矢量</span>
+      </div>
+
+      <div class="hint">滚轮缩放 · 拖拽平移 · 点击极片 / 柱条回溯传递链</div>
+
+      <div class="view-tools">
+        <button class="icon-btn" id="zoomIn" type="button" aria-label="放大">+</button>
+        <button class="icon-btn" id="zoomOut" type="button" aria-label="缩小">−</button>
+        <button class="icon-btn" id="fitBtn" type="button" aria-label="复位视图" title="复位视图">⌂</button>
+      </div>
+
+      <div class="load-error hidden" id="loadError"></div>
+    </section>
+
+    <aside class="panel" id="controlPanel">
+      <div class="panel-head">
+        <div>
+          <h2>实时重算控制台</h2>
+          <p>拖动参数后，整片热力、传递链和角点矢量立即更新。</p>
+        </div>
+        <span class="live">LIVE</span>
+      </div>
+
+      <section class="card">
+        <div class="card-title">工艺预设 <span class="tag">CRITICAL</span></div>
+        <div class="btn-row">
+          <button class="btn primary" id="presetBtn" type="button">载入刚好卡公差的叠片布局</button>
+          <button class="btn" id="resetViewBtn" type="button">复位视图</button>
+        </div>
+        <p class="preset-note" id="presetNote">固定种子把 8 片边缘/末段极片布到 77.4–79.4 μm。张力向左或向右微调约 0.2–0.4 N，都会有不同极片越过 80 μm 阈值并由橙转红。</p>
+      </section>
+
+      <section class="card">
+        <div class="card-title">参数</div>
+
+        <div class="control">
+          <label class="control-head" for="tensionInput">
+            <span>隔膜张力 T</span>
+            <output id="tensionVal">9.0 N</output>
+          </label>
+          <input id="tensionInput" type="range" min="6" max="18" step="0.1" value="9.0" />
+          <div class="range-labels"><span>6 N</span><span>18 N</span></div>
+          <span class="control-hint">T 增大时回弹方向指向阵列中心；边缘权重 E≈1，中心 E≈0.16，边缘移动明显更大。</span>
+        </div>
+
+        <div class="control">
+          <label class="control-head" for="deviationInput">
+            <span>对位偏差 δ</span>
+            <output id="deviationVal">1.05 μm/层</output>
+          </label>
+          <input id="deviationInput" type="range" min="0" max="3.5" step="0.05" value="1.05" />
+          <div class="range-labels"><span>0</span><span>3.5 μm/层</span></div>
+          <span class="control-hint">同向对位偏差沿叠片顺序逐层相加，末段形成近似线性累积。</span>
+        </div>
+
+        <div class="control">
+          <label class="control-head" for="transferInput">
+            <span>上一片传递保持率 η</span>
+            <output id="transferVal">1.00</output>
+          </label>
+          <input id="transferInput" type="range" min="0.70" max="1" step="0.01" value="1" />
+          <div class="range-labels"><span>0.70 衰减</span><span>1.00 全传递</span></div>
+        </div>
+
+        <div class="control">
+          <label class="control-head" for="toleranceInput">
+            <span>工艺公差 Tol</span>
+            <output id="toleranceVal">80 μm</output>
+          </label>
+          <input id="toleranceInput" type="range" min="60" max="100" step="1" value="80" />
+        </div>
+
+        <label class="check-row">
+          <input id="vectorToggle" type="checkbox" checked />
+          <span>显示选中片四角偏移矢量</span>
+        </label>
+      </section>
+
+      <section class="card">
+        <div class="inspector-head">
+          <div>
+            <div class="eyebrow">SELECTED SHEET</div>
+            <h3 id="sheetTitle">第 28 片</h3>
+          </div>
+          <span class="badge warn" id="sheetBadge">临界</span>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric"><span>叠片序号</span><b id="mIndex">28 / 28</b></div>
+          <div class="metric"><span>网格位置</span><b id="mGrid">第 4 行 · 第 1 列</b></div>
+          <div class="metric"><span>累计错位 |D|</span><b id="mMag">79.4 μm</b></div>
+          <div class="metric"><span>公差占比</span><b id="mRatio">99.3%</b></div>
+          <div class="metric"><span>位置 ΔX / ΔY</span><b id="mPos">--</b></div>
+          <div class="metric"><span>极片角度 θ</span><b id="mAngle">--</b></div>
+          <div class="metric"><span>张力回弹 R</span><b id="mTension">--</b></div>
+          <div class="metric"><span>边缘权重 E</span><b id="mEdge">--</b></div>
+        </div>
+
+        <div class="contrib-line" id="contribLine"></div>
+
+        <table class="corner-table">
+          <thead>
+            <tr><th>角点</th><th>ΔX (μm)</th><th>ΔY (μm)</th><th>|v| (μm)</th></tr>
+          </thead>
+          <tbody id="cornerBody"></tbody>
+        </table>
+      </section>
+
+      <section class="card chart-wrap">
+        <div class="card-title">逐片累计错位序列 <span class="tag">CLICK BAR</span></div>
+        <div class="chart">
+          <div class="threshold-line" id="thresholdLine"><span>Tol = 80</span></div>
+          <div class="bars" id="miniBars"></div>
+        </div>
+        <div class="chart-axis"><span>01 首片</span><span>叠片顺序 01 → 28</span><span>28 末片</span></div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">计算模型</div>
+        <pre class="formula"><b>Cᵢ</b> = η Cᵢ₋₁ + δ·gᵢ          <span style="color:#64748b">// 对位偏差/上一片传递</span>
+<b>Rᵢ</b> = kT·(T/T₀)·Eᵢ·uᵢ       <span style="color:#64748b">// 张力向中心回弹</span>
+<b>Dᵢ</b> = Cᵢ + Rᵢ + Bᵢ           <span style="color:#64748b">// B：临界布种基准</span>
+Eᵢ = 0.08 + 0.92·max(|nx|,|ny|)^2.2</pre>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script src="vendor/pixi.min.js"></script>
+<script src="vendor/pixi-viewport.min.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const HOST = $('pixiHost');
+  const ERROR_BOX = $('loadError');
+
+  const COLS = 7;
+  const ROWS = 4;
+  const COUNT = COLS * ROWS;
+  const CELL_X = 205;
+  const CELL_Y = 184;
+  const PLATE_W = 84;
+  const PLATE_H = 116;
+  const PX_PER_UM = 0.72;
+  const TENSION_K = 72;
+  const TENSION_NOM = 14.4;
+  const BAR_MAX = 110;
+  const FIELD_W = (COLS - 1) * CELL_X + 178;
+  const FIELD_H = (ROWS - 1) * CELL_Y + 168;
+  const WORLD_W = FIELD_W + 70;
+  const WORLD_H = FIELD_H + 70;
+  const SEED = 1000389;
+
+  const CORNER_NAMES = ['左上角', '右上角', '右下角', '左下角'];
+  const CORNER_COLORS = [0x22d3ee, 0xa78bfa, 0xf472b6, 0xfde047];
+  const CORNER_CSS = ['#22d3ee', '#a78bfa', '#f472b6', '#fde047'];
+
+  // The two signs make the preset sensitive in both slider directions:
+  // "out" sheets fail when tension loses its centerward correction, while
+  // "in" sheets are already on the centerward over-rebound side.
+  const CRITICAL_LAYOUT = {
+    0:  { target: 78.0, side: 'out' },
+    6:  { target: 78.6, side: 'in' },
+    13: { target: 77.4, side: 'out' },
+    21: { target: 78.2, side: 'in' },
+    24: { target: 78.4, side: 'out' },
+    25: { target: 77.8, side: 'in' },
+    26: { target: 79.0, side: 'out' },
+    27: { target: 79.4, side: 'in' }
+  };
+
+  const defaultParams = () => ({
+    tension: 9.0,
+    deviation: 1.05,
+    transfer: 1,
+    tolerance: 80,
+    showVectors: true
+  });
+
+  let params = defaultParams();
+  let layout = [];
+  let model = [];
+  let selectedId = COUNT - 1;
+  let barEls = [];
+
+  let app = null;
+  let viewport = null;
+  let sheetLayer = null;
+  let chainG = null;
+  let vectorLayer = null;
+  let vectorG = null;
+  let vectorLabels = [];
+  let views = [];
+  let haloTexture = null;
+
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
+
+  function mulberry32(seed) {
+    return function random() {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function buildLayout(seed) {
+    const rand = mulberry32(seed);
+    const items = [];
+
+    for (let i = 0; i < COUNT; i += 1) {
+      const row = Math.floor(i / COLS);
+      const k = i % COLS;
+      // Serpentine order keeps every transfer segment between adjacent cells.
+      const col = row % 2 === 0 ? k : COLS - 1 - k;
+      const x = (col - (COLS - 1) / 2) * CELL_X;
+      const y = (row - (ROWS - 1) / 2) * CELL_Y;
+      const nx = x / (((COLS - 1) * CELL_X) / 2);
+      const ny = y / (((ROWS - 1) * CELL_Y) / 2);
+      const maxNorm = Math.max(Math.abs(nx), Math.abs(ny));
+      const edge = 0.08 + 0.92 * Math.pow(maxNorm, 2.2);
+      const len = Math.hypot(x, y) || 1;
+
+      items.push({
+        id: i,
+        row,
+        col,
+        x,
+        y,
+        edge,
+        inX: -x / len,
+        inY: -y / len,
+        gainX: 0.82 + rand() * 0.24,
+        gainY: rand() * 2 - 1,
+        angleSeed: (rand() - 0.5) * 2.4,
+        angleSign: rand() < 0.5 ? -1 : 1,
+        shimX: 0,
+        shimY: 0
+      });
+    }
+
+    // Solve a centerward base offset for selected sheets so the preset is
+    // genuinely close to, but below, the tolerance threshold.
+    const baseParams = defaultParams();
+    const raw = computeModel(items, baseParams, false);
+    Object.entries(CRITICAL_LAYOUT).forEach(([idText, spec]) => {
+      const id = Number(idText);
+      const s = items[id];
+      const d = raw[id];
+      const dot = d.dx * s.inX + d.dy * s.inY;
+      const discriminant = dot * dot + spec.target * spec.target - d.mag * d.mag;
+      const root = Math.sqrt(Math.max(0, discriminant));
+      const shift = spec.side === 'in' ? -dot + root : -dot - root;
+      if (Number.isFinite(shift)) {
+        s.shimX = shift * s.inX;
+        s.shimY = shift * s.inY;
+      }
+    });
+
+    return items;
+  }
+
+  function computeModel(items, p, useShim = true) {
+    let accX = 0;
+    let accY = 0;
+    let accAngle = 0;
+
+    return items.map((s) => {
+      accX = p.transfer * accX + p.deviation * s.gainX;
+      accY = p.transfer * accY + p.deviation * 0.18 * s.gainY;
+      accAngle = p.transfer * 0.72 * accAngle + s.angleSeed + p.deviation * 0.18 * s.angleSign;
+
+      const tensionShift = (p.tension / TENSION_NOM) * TENSION_K * s.edge;
+      const shimX = useShim ? s.shimX : 0;
+      const shimY = useShim ? s.shimY : 0;
+      const dx = accX + tensionShift * s.inX + shimX;
+      const dy = accY + tensionShift * s.inY + shimY;
+      const mag = Math.hypot(dx, dy);
+
+      return {
+        id: s.id,
+        accX,
+        accY,
+        tensionShift,
+        dx,
+        dy,
+        mag,
+        angle: accAngle
+      };
+    });
+  }
+
+  const HEAT_STOPS = [
+    [0.0, [16, 185, 129]],
+    [0.55, [163, 230, 53]],
+    [0.80, [245, 158, 11]],
+    [1.0, [239, 68, 68]],
+    [1.25, [153, 27, 27]]
+  ];
+
+  function heatRGB(ratio) {
+    const x = clamp(ratio, 0, 1.25);
+    for (let i = 0; i < HEAT_STOPS.length - 1; i += 1) {
+      const [p0, c0] = HEAT_STOPS[i];
+      const [p1, c1] = HEAT_STOPS[i + 1];
+      if (x >= p0 && x <= p1) {
+        const t = (x - p0) / (p1 - p0);
+        return [
+          Math.round(c0[0] + (c1[0] - c0[0]) * t),
+          Math.round(c0[1] + (c1[1] - c0[1]) * t),
+          Math.round(c0[2] + (c1[2] - c0[2]) * t)
+        ];
+      }
+    }
+    return HEAT_STOPS[HEAT_STOPS.length - 1][1];
+  }
+
+  function rgbNumber(c) {
+    return (c[0] << 16) | (c[1] << 8) | c[2];
+  }
+
+  function cssRGB(c) {
+    return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+  }
+
+  function statusOf(mag) {
+    const ratio = mag / params.tolerance;
+    if (ratio >= 1) return { key: 'bad', label: '超差' };
+    if (ratio >= 0.85) return { key: 'warn', label: '临界' };
+    return { key: 'good', label: '合格' };
+  }
+
+  function showError(err) {
+    if (!ERROR_BOX) return;
+    ERROR_BOX.classList.remove('hidden');
+    ERROR_BOX.textContent = `PixiJS / pixi-viewport 加载或初始化失败：${err && err.message ? err.message : err}`;
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+
+  function drawArrowHead(g, x, y, angle, size, color, alpha = 1) {
+    const a1 = angle + Math.PI - 0.43;
+    const a2 = angle + Math.PI + 0.43;
+    g.beginFill(color, alpha)
+      .moveTo(x, y)
+      .lineTo(x + size * Math.cos(a1), y + size * Math.sin(a1))
+      .lineTo(x + size * Math.cos(a2), y + size * Math.sin(a2))
+      .closePath()
+      .endFill();
+  }
+
+  function drawDashedLine(g, x1, y1, x2, y2, dash = 8, gap = 6) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 0.001) return;
+    const ux = dx / len;
+    const uy = dy / len;
+    for (let d = 0; d < len; d += dash + gap) {
+      const end = Math.min(d + dash, len);
+      g.moveTo(x1 + ux * d, y1 + uy * d);
+      g.lineTo(x1 + ux * end, y1 + uy * end);
+    }
+  }
+
+  function drawDashedRect(g, x, y, w, h) {
+    g.lineStyle(1.5, 0x7dd3fc, 0.34);
+    drawDashedLine(g, x, y, x + w, y);
+    drawDashedLine(g, x + w, y, x + w, y + h);
+    drawDashedLine(g, x + w, y + h, x, y + h);
+    drawDashedLine(g, x, y + h, x, y);
+  }
+
+  function makeHaloTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(64, 64, 2, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(255,255,255,.82)');
+    gradient.addColorStop(0.42, 'rgba(255,255,255,.28)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+    return PIXI.Texture.from(canvas);
+  }
+
+  function drawWorldChrome() {
+    const bg = new PIXI.Graphics();
+    viewport.addChild(bg);
+
+    bg.beginFill(0x0a1424, 0.9)
+      .lineStyle(1, 0x22324f, 0.95)
+      .drawRoundedRect(-FIELD_W / 2, -FIELD_H / 2, FIELD_W, FIELD_H, 28)
+      .endFill();
+
+    bg.beginFill(0x273c61, 0.42);
+    const step = 34;
+    for (let x = -FIELD_W / 2 + 28; x <= FIELD_W / 2 - 24; x += step) {
+      for (let y = -FIELD_H / 2 + 28; y <= FIELD_H / 2 - 24; y += step) {
+        bg.drawCircle(x, y, 1.05);
+      }
+    }
+    bg.endFill();
+
+    bg.lineStyle(1, 0x38bdf8, 0.22);
+    bg.moveTo(-30, 0).lineTo(30, 0);
+    bg.moveTo(0, -30).lineTo(0, 30);
+    bg.drawCircle(0, 0, 7);
+
+    const centerText = new PIXI.Text('阵列中心 · T↑ 回弹收拢', {
+      fontFamily: 'PingFang SC, Microsoft YaHei, system-ui, sans-serif',
+      fontSize: 13,
+      fontWeight: '700',
+      fill: 0x7dd3fc,
+      stroke: 0x06101f,
+      strokeThickness: 4
+    });
+    centerText.anchor.set(0.5);
+    centerText.position.set(0, -25);
+    viewport.addChild(centerText);
+
+    // Four inward rebound guides.
+    const guide = new PIXI.Graphics();
+    guide.lineStyle(3, 0x38bdf8, 0.24);
+    const gx = FIELD_W / 2 - 42;
+    const gy = FIELD_H / 2 - 42;
+    const guideSegments = [
+      [0, -gy - 22, 0, -gy + 24, Math.PI / 2],
+      [0, gy + 22, 0, gy - 24, -Math.PI / 2],
+      [-gx - 22, 0, -gx + 24, 0, 0],
+      [gx + 22, 0, gx - 24, 0, Math.PI]
+    ];
+    guideSegments.forEach(([x1, y1, x2, y2, a]) => {
+      guide.moveTo(x1, y1).lineTo(x2, y2);
+      drawArrowHead(guide, x2, y2, a, 10, 0x38bdf8, 0.28);
+    });
+    viewport.addChild(guide);
+
+    const orderG = new PIXI.Graphics();
+    orderG.lineStyle(2, 0x38bdf8, 0.18);
+    for (let i = 0; i < COUNT - 1; i += 1) {
+      const a = layout[i];
+      const b = layout[i + 1];
+      orderG.moveTo(a.x, a.y).lineTo(b.x, b.y);
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      drawArrowHead(orderG, mx, my, angle, 7, 0x60a5fa, 0.22);
+    }
+    viewport.addChild(orderG);
+  }
+
+  function createSheetViews() {
+    haloTexture = makeHaloTexture();
+    sheetLayer = new PIXI.Container();
+    viewport.addChild(sheetLayer);
+
+    views = layout.map((s) => {
+      const root = new PIXI.Container();
+      root.position.set(s.x, s.y);
+      root.interactive = true;
+      root.cursor = 'pointer';
+      root.hitArea = new PIXI.Rectangle(
+        -PLATE_W / 2 - 16,
+        -PLATE_H / 2 - 18,
+        PLATE_W + 32,
+        PLATE_H + 48
+      );
+
+      const halo = new PIXI.Sprite(haloTexture);
+      halo.anchor.set(0.5);
+      halo.width = 178;
+      halo.height = 198;
+      halo.alpha = 0.22;
+      root.addChild(halo);
+
+      const idealG = new PIXI.Graphics();
+      drawDashedRect(idealG, -PLATE_W / 2, -PLATE_H / 2, PLATE_W, PLATE_H);
+      root.addChild(idealG);
+
+      const body = new PIXI.Container();
+      root.addChild(body);
+
+      const ringG = new PIXI.Graphics();
+      body.addChild(ringG);
+
+      const shadowG = new PIXI.Graphics();
+      shadowG.beginFill(0x000000, 0.34)
+        .drawRoundedRect(-PLATE_W / 2 + 3, -PLATE_H / 2 + 6, PLATE_W, PLATE_H, 11)
+        .endFill();
+      body.addChild(shadowG);
+
+      const plateG = new PIXI.Graphics();
+      body.addChild(plateG);
+
+      const num = new PIXI.Text(String(s.id + 1).padStart(2, '0'), {
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+        fontSize: 16,
+        fontWeight: '900',
+        fill: 0xffffff,
+        stroke: 0x06101f,
+        strokeThickness: 4
+      });
+      num.anchor.set(0.5);
+      num.position.set(0, -11);
+      body.addChild(num);
+
+      const magText = new PIXI.Text('', {
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+        fontSize: 11,
+        fontWeight: '800',
+        fill: 0xe0f2fe,
+        stroke: 0x06101f,
+        strokeThickness: 3
+      });
+      magText.anchor.set(0.5);
+      magText.position.set(0, 13);
+      body.addChild(magText);
+
+      sheetLayer.addChild(root);
+
+      let down = null;
+      const getGlobal = (event) => event.data?.global || event.global || { x: 0, y: 0 };
+      root.on('pointerdown', (event) => {
+        const g = getGlobal(event);
+        down = { x: g.x, y: g.y };
+      });
+      root.on('pointerup', (event) => {
+        if (!down) return;
+        const g = getGlobal(event);
+        const moved = Math.hypot(g.x - down.x, g.y - down.y);
+        down = null;
+        if (moved < 8) selectSheet(s.id);
+      });
+      root.on('pointerupoutside', () => { down = null; });
+
+      return { root, halo, body, ringG, plateG, num, magText, baseAlpha: 0.22 };
+    });
+
+    chainG = new PIXI.Graphics();
+    viewport.addChild(chainG);
+
+    vectorLayer = new PIXI.Container();
+    viewport.addChild(vectorLayer);
+    vectorG = new PIXI.Graphics();
+    vectorLayer.addChild(vectorG);
+
+    vectorLabels = CORNER_NAMES.map((name, i) => {
+      const label = new PIXI.Text(`C${i + 1} ${name}`, {
+        fontFamily: 'PingFang SC, Microsoft YaHei, system-ui, sans-serif',
+        fontSize: 12,
+        fontWeight: '900',
+        fill: CORNER_COLORS[i],
+        stroke: 0x06101f,
+        strokeThickness: 4
+      });
+      label.anchor.set(0.5);
+      vectorLayer.addChild(label);
+      return label;
+    });
+  }
+
+  function updateSheets() {
+    model.forEach((d, i) => {
+      const v = views[i];
+      if (!v) return;
+
+      const ratio = d.mag / params.tolerance;
+      const rgb = heatRGB(ratio);
+      const color = rgbNumber(rgb);
+
+      v.body.position.set(d.dx * PX_PER_UM, d.dy * PX_PER_UM);
+      v.body.rotation = d.angle * Math.PI / 180;
+
+      v.plateG.clear();
+      v.plateG.beginFill(color, 0.9)
+        .lineStyle(1.5, 0xffffff, 0.22)
+        .drawRoundedRect(-PLATE_W / 2, -PLATE_H / 2, PLATE_W, PLATE_H, 11)
+        .endFill();
+      v.plateG.beginFill(0xffffff, 0.13)
+        .drawRoundedRect(-PLATE_W / 2 + 8, -PLATE_H / 2 + 8, PLATE_W - 16, 15, 6)
+        .endFill();
+
+      v.halo.tint = color;
+      const baseAlpha = 0.15 + 0.34 * clamp(ratio, 0, 1.05);
+      v.baseAlpha = baseAlpha;
+      v.halo.alpha = baseAlpha;
+
+      v.magText.text = d.mag.toFixed(1);
+      const focused = selectedId === null || i <= selectedId;
+      v.root.alpha = focused ? 1 : 0.2;
+
+      v.ringG.clear();
+      if (selectedId !== null && i <= selectedId) {
+        const selected = i === selectedId;
+        const ringColor = selected ? 0xfde047 : 0x22d3ee;
+        const x = -PLATE_W / 2 - 6;
+        const y = -PLATE_H / 2 - 6;
+        const w = PLATE_W + 12;
+        const h = PLATE_H + 12;
+        v.ringG.lineStyle(selected ? 8 : 6, ringColor, selected ? 0.18 : 0.11)
+          .drawRoundedRect(x, y, w, h, 15);
+        v.ringG.lineStyle(selected ? 2.8 : 2, ringColor, 0.98)
+          .drawRoundedRect(x, y, w, h, 15);
+      }
+    });
+  }
+
+  function updateChain() {
+    if (!chainG) return;
+    chainG.clear();
+    if (selectedId === null) return;
+
+    const points = [];
+    for (let i = 0; i <= selectedId; i += 1) {
+      const s = layout[i];
+      const d = model[i];
+      points.push({
+        x: s.x + d.dx * PX_PER_UM,
+        y: s.y + d.dy * PX_PER_UM
+      });
+    }
+
+    if (points.length < 2) return;
+
+    chainG.lineStyle(11, 0x0ea5e9, 0.13);
+    chainG.moveTo(points[0].x, points[0].y);
+    points.slice(1).forEach((p) => chainG.lineTo(p.x, p.y));
+
+    chainG.lineStyle(2.8, 0x67e8f9, 0.96);
+    chainG.moveTo(points[0].x, points[0].y);
+    points.slice(1).forEach((p) => chainG.lineTo(p.x, p.y));
+
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const a = points[i];
+      const b = points[i + 1];
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      drawArrowHead(
+        chainG,
+        (a.x + b.x) / 2,
+        (a.y + b.y) / 2,
+        angle,
+        8.5,
+        0xa5f3fc,
+        0.98
+      );
+    }
+  }
+
+  function getCornerReadouts(id) {
+    const d = model[id];
+    const bx = d.dx * PX_PER_UM;
+    const by = d.dy * PX_PER_UM;
+    const theta = d.angle * Math.PI / 180;
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    const corners = [
+      [-PLATE_W / 2, -PLATE_H / 2],
+      [ PLATE_W / 2, -PLATE_H / 2],
+      [ PLATE_W / 2,  PLATE_H / 2],
+      [-PLATE_W / 2,  PLATE_H / 2]
+    ];
+
+    return corners.map(([ix, iy], corner) => {
+      const ax = bx + ix * cos - iy * sin;
+      const ay = by + ix * sin + iy * cos;
+      const dxUm = (ax - ix) / PX_PER_UM;
+      const dyUm = (ay - iy) / PX_PER_UM;
+      return {
+        corner,
+        ix,
+        iy,
+        ax,
+        ay,
+        dxUm,
+        dyUm,
+        magUm: Math.hypot(dxUm, dyUm)
+      };
+    });
+  }
+
+  function updateVectors() {
+    if (!vectorLayer || !vectorG) return;
+
+    if (selectedId === null || !params.showVectors) {
+      vectorLayer.visible = false;
+      return;
+    }
+
+    vectorLayer.visible = true;
+    const s = layout[selectedId];
+    vectorLayer.position.set(s.x, s.y);
+    vectorG.clear();
+
+    const readouts = getCornerReadouts(selectedId);
+    readouts.forEach((r) => {
+      const color = CORNER_COLORS[r.corner];
+      const vx = r.ax - r.ix;
+      const vy = r.ay - r.iy;
+      const angle = Math.atan2(vy, vx);
+
+      vectorG.lineStyle(7, 0x020617, 0.82);
+      vectorG.moveTo(r.ix, r.iy);
+      vectorG.lineTo(r.ax, r.ay);
+
+      vectorG.lineStyle(2.4, color, 1);
+      vectorG.moveTo(r.ix, r.iy);
+      vectorG.lineTo(r.ax, r.ay);
+
+      if (Math.hypot(vx, vy) > 4) {
+        drawArrowHead(vectorG, r.ax, r.ay, angle, 10, color, 1);
+      }
+
+      vectorG.lineStyle(1.6, 0xffffff, 0.92)
+        .beginFill(0x0b1220, 1)
+        .drawCircle(r.ix, r.iy, 4.6)
+        .endFill();
+      vectorG.beginFill(color, 1)
+        .drawCircle(r.ax, r.ay, 3.4)
+        .endFill();
+
+      const label = vectorLabels[r.corner];
+      label.visible = true;
+      const sideX = r.corner === 0 || r.corner === 3 ? -1 : 1;
+      const sideY = r.corner < 2 ? -1 : 1;
+      label.position.set(r.ix + sideX * 34, r.iy + sideY * 17);
+    });
+  }
+
+  function buildBars() {
+    const wrap = $('miniBars');
+    wrap.innerHTML = '';
+    barEls = [];
+
+    for (let i = 0; i < COUNT; i += 1) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'bar';
+      button.setAttribute('aria-label', `选择第 ${i + 1} 片`);
+      const fill = document.createElement('span');
+      fill.className = 'bar-fill';
+      button.appendChild(fill);
+      button.addEventListener('click', () => selectSheet(i));
+      wrap.appendChild(button);
+      barEls.push({ button, fill });
+    }
+  }
+
+  function updateDom() {
+    $('tensionVal').textContent = `${params.tension.toFixed(1)} N`;
+    $('deviationVal').textContent = `${params.deviation.toFixed(2)} μm/层`;
+    $('transferVal').textContent = params.transfer.toFixed(2);
+    $('toleranceVal').textContent = `${params.tolerance.toFixed(0)} μm`;
+
+    let ok = 0;
+    let warn = 0;
+    let bad = 0;
+    let maxD = -Infinity;
+    let maxId = 0;
+
+    model.forEach((d) => {
+      const status = statusOf(d.mag);
+      if (status.key === 'good') ok += 1;
+      if (status.key === 'warn') warn += 1;
+      if (status.key === 'bad') bad += 1;
+      if (d.mag > maxD) {
+        maxD = d.mag;
+        maxId = d.id;
+      }
+    });
+
+    $('statMax').textContent = `${maxD.toFixed(1)} μm · #${String(maxId + 1).padStart(2, '0')}`;
+    $('statOk').textContent = ok;
+    $('statWarn').textContent = warn;
+    $('statBad').textContent = bad;
+
+    const thresholdPct = `${(params.tolerance / BAR_MAX) * 100}%`;
+    const thresholdLine = $('thresholdLine');
+    thresholdLine.style.bottom = thresholdPct;
+    thresholdLine.querySelector('span').textContent = `Tol = ${params.tolerance.toFixed(0)}`;
+
+    model.forEach((d, i) => {
+      const ratio = d.mag / params.tolerance;
+      const rgb = heatRGB(ratio);
+      const item = barEls[i];
+      if (!item) return;
+      item.fill.style.height = `${clamp((d.mag / BAR_MAX) * 100, 2.5, 100)}%`;
+      item.fill.style.background = `linear-gradient(180deg, ${cssRGB(rgb)}, rgba(2,6,23,.72))`;
+      item.button.classList.toggle('selected', i === selectedId);
+      item.button.title = `#${String(i + 1).padStart(2, '0')} · ${d.mag.toFixed(1)} μm · ${statusOf(d.mag).label}`;
+      item.button.setAttribute('aria-label', `第 ${i + 1} 片，${d.mag.toFixed(1)} 微米，${statusOf(d.mag).label}`);
+      item.button.setAttribute('aria-pressed', i === selectedId ? 'true' : 'false');
+    });
+
+    updateInspector();
+  }
+
+  function updateInspector() {
+    if (selectedId === null || !layout[selectedId]) return;
+
+    const s = layout[selectedId];
+    const d = model[selectedId];
+    const status = statusOf(d.mag);
+    const ratio = d.mag / params.tolerance;
+
+    $('sheetTitle').textContent = `第 ${String(selectedId + 1).padStart(2, '0')} 片`;
+    const badge = $('sheetBadge');
+    badge.textContent = `${status.label} · ${(ratio * 100).toFixed(1)}%`;
+    badge.className = `badge ${status.key}`;
+
+    $('mIndex').textContent = `${selectedId + 1} / ${COUNT}`;
+    $('mGrid').textContent = `第 ${s.row + 1} 行 · 蛇形第 ${s.col + 1} 列`;
+    $('mMag').textContent = `${d.mag.toFixed(2)} μm`;
+    $('mRatio').textContent = `${(ratio * 100).toFixed(1)}% Tol`;
+    $('mPos').textContent = `${d.dx >= 0 ? '+' : ''}${d.dx.toFixed(1)} / ${d.dy >= 0 ? '+' : ''}${d.dy.toFixed(1)} μm`;
+    $('mAngle').textContent = `${d.angle >= 0 ? '+' : ''}${d.angle.toFixed(2)}°`;
+    $('mTension').textContent = `${d.tensionShift.toFixed(1)} μm`;
+    $('mEdge').textContent = `${s.edge.toFixed(2)} / 1.00`;
+
+    $('contribLine').textContent =
+      `C=(${d.accX.toFixed(1)}, ${d.accY.toFixed(1)}) + R=${d.tensionShift.toFixed(1)}·(${s.inX.toFixed(2)},${s.inY.toFixed(2)}) + B=(${s.shimX.toFixed(1)},${s.shimY.toFixed(1)}) μm`;
+
+    const readouts = getCornerReadouts(selectedId);
+    $('cornerBody').innerHTML = readouts.map((r) => `
+      <tr>
+        <td><span class="corner-dot" style="background:${CORNER_CSS[r.corner]}"></span>${CORNER_NAMES[r.corner]}</td>
+        <td>${r.dxUm >= 0 ? '+' : ''}${r.dxUm.toFixed(2)}</td>
+        <td>${r.dyUm >= 0 ? '+' : ''}${r.dyUm.toFixed(2)}</td>
+        <td><b>${r.magUm.toFixed(2)}</b></td>
+      </tr>
+    `).join('');
+  }
+
+  function updateAll() {
+    model = computeModel(layout, params);
+    updateSheets();
+    updateChain();
+    updateVectors();
+    updateDom();
+  }
+
+  function selectSheet(id) {
+    selectedId = id;
+    updateSheets();
+    updateChain();
+    updateVectors();
+    updateDom();
+  }
+
+  function syncControls() {
+    $('tensionInput').value = String(params.tension);
+    $('deviationInput').value = String(params.deviation);
+    $('transferInput').value = String(params.transfer);
+    $('toleranceInput').value = String(params.tolerance);
+    $('vectorToggle').checked = params.showVectors;
+  }
+
+  function fitView() {
+    if (!app || !viewport) return;
+    const w = HOST.clientWidth;
+    const h = HOST.clientHeight;
+    if (w < 10 || h < 10) return;
+    app.renderer.resize(w, h);
+    viewport.resize(w, h);
+    const scale = clamp(Math.min((w - 18) / WORLD_W, (h - 18) / WORLD_H), 0.16, 1.08);
+    viewport.setZoom(scale);
+    viewport.moveCenter(0, 0);
+  }
+
+  function bindUi() {
+    $('tensionInput').addEventListener('input', (e) => {
+      params.tension = Number(e.target.value);
+      updateAll();
+    });
+    $('deviationInput').addEventListener('input', (e) => {
+      params.deviation = Number(e.target.value);
+      updateAll();
+    });
+    $('transferInput').addEventListener('input', (e) => {
+      params.transfer = Number(e.target.value);
+      updateAll();
+    });
+    $('toleranceInput').addEventListener('input', (e) => {
+      params.tolerance = Number(e.target.value);
+      updateAll();
+    });
+    $('vectorToggle').addEventListener('change', (e) => {
+      params.showVectors = e.target.checked;
+      updateVectors();
+    });
+
+    $('presetBtn').addEventListener('click', () => {
+      params = defaultParams();
+      layout = buildLayout(SEED);
+      selectedId = COUNT - 1;
+      syncControls();
+      updateAll();
+      fitView();
+    });
+    $('resetViewBtn').addEventListener('click', fitView);
+    $('fitBtn').addEventListener('click', fitView);
+    $('zoomIn').addEventListener('click', () => viewport.zoomPercent(0.18, true));
+    $('zoomOut').addEventListener('click', () => viewport.zoomPercent(-0.18, true));
+  }
+
+  function initPixi() {
+    if (!window.PIXI || !PIXI.Viewport) {
+      throw new Error('未找到本地 vendor/pixi.min.js 或 pixi-viewport.min.js。');
+    }
+
+    const width = Math.max(1, HOST.clientWidth);
+    const height = Math.max(1, HOST.clientHeight);
+
+    app = new PIXI.Application({
+      width,
+      height,
+      antialias: true,
+      backgroundAlpha: 0,
+      resolution: Math.min(window.devicePixelRatio || 1, 2),
+      autoDensity: true
+    });
+    HOST.appendChild(app.view);
+    app.view.setAttribute('aria-label', '可缩放和平移的极片错位阵列');
+
+    viewport = new PIXI.Viewport({
+      screenWidth: width,
+      screenHeight: height,
+      worldWidth: WORLD_W,
+      worldHeight: WORLD_H,
+      interaction: app.renderer.plugins.interaction
+    });
+    app.stage.addChild(viewport);
+
+    viewport
+      .drag()
+      .pinch()
+      .wheel()
+      .decelerate({ friction: 0.94 })
+      .clampZoom({ minScale: 0.16, maxScale: 4.5 });
+
+    drawWorldChrome();
+    createSheetViews();
+
+    app.ticker.add((delta) => {
+      if (!views.length || !model.length) return;
+      const time = performance.now() / 1000;
+      views.forEach((v, i) => {
+        const ratio = model[i].mag / params.tolerance;
+        if (ratio >= 1) {
+          const pulse = 0.5 + 0.5 * Math.sin(time * 5.2 + i * 0.7);
+          v.halo.alpha = 0.38 + 0.24 * pulse;
+        } else if (v.baseAlpha !== undefined) {
+          v.halo.alpha = v.baseAlpha;
+        }
+      });
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      const w = HOST.clientWidth;
+      const h = HOST.clientHeight;
+      if (w < 10 || h < 10 || !app) return;
+      app.renderer.resize(w, h);
+      viewport.resize(w, h);
+    });
+    resizeObserver.observe(HOST);
+
+    requestAnimationFrame(fitView);
+  }
+
+  function init() {
+    try {
+      layout = buildLayout(SEED);
+      model = computeModel(layout, params);
+      buildBars();
+      bindUi();
+      syncControls();
+      initPixi();
+      updateAll();
+    } catch (err) {
+      showError(err);
+    }
+  }
+
+  init();
+})();
+</script>
