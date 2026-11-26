@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="claude:viewport-fit-sides" content="cover" />
+  <title>地热田井场布置热干扰沙盘</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2c3.2 4.2 6 7.4 6 11a6 6 0 0 1-12 0c0-3.6 2.8-6.8 6-11Z"/>
+          <path d="M9.5 13.5c.4 1.4 1.3 2.2 2.5 2.5"/>
+        </svg>
+      </div>
+      <div>
+        <h1>地热田井场布置 · 热突破沙盘</h1>
+        <p>三角形井网 / 采灌平衡 / 温度场联动 / 临界井距预警</p>
+      </div>
+    </div>
+    <div class="top-chips">
+      <span class="chip" id="timeChip"><span class="dot"></span>模拟 <b id="topTime">4.0 a</b></span>
+      <span class="chip" id="riskChip">热干扰井 <b id="riskCount">0</b></span>
+      <span class="chip">当前井 <b id="topSelected">P1</b></span>
+    </div>
+    <div class="top-actions">
+      <button class="btn primary sm" id="topPlayBtn">⏸ 暂停演化</button>
+      <button class="btn sm" id="topResetBtn">↺ 重置时间</button>
+    </div>
+  </header>
+
+  <aside class="panel controls scroll-thin">
+    <div class="panel-scroll">
+      <section class="control-section">
+        <h2 class="control-title">井网型式 <span class="num">01</span></h2>
+        <div class="pattern-grid">
+          <button class="pattern-btn active" data-pattern="pair" aria-pressed="true">
+            <svg viewBox="0 0 48 30">
+              <line x1="12" y1="15" x2="36" y2="15" stroke="#6b88a8" stroke-width="1.5" stroke-dasharray="3 3"/>
+              <circle cx="12" cy="15" r="5" fill="#39c5ff" stroke="#dff7ff" stroke-width="1.4"/>
+              <circle cx="36" cy="15" r="5" fill="#ff8a3d" stroke="#fff1e8" stroke-width="1.4"/>
+            </svg>
+            <span>对井</span><small>典型 520 m</small>
+          </button>
+          <button class="pattern-btn" data-pattern="five" aria-pressed="false">
+            <svg viewBox="0 0 48 30">
+              <path d="M10 7h28v16H10z M10 7l14 8 14-8M10 23l14-8 14 8" fill="none" stroke="#426282" stroke-width="1"/>
+              <circle cx="10" cy="7" r="3.5" fill="#39c5ff"/>
+              <circle cx="38" cy="7" r="3.5" fill="#39c5ff"/>
+              <circle cx="10" cy="23" r="3.5" fill="#39c5ff"/>
+              <circle cx="38" cy="23" r="3.5" fill="#39c5ff"/>
+              <circle cx="24" cy="15" r="4.2" fill="#ff8a3d" stroke="#fff" stroke-width="1"/>
+            </svg>
+            <span>五点</span><small>典型 426 m</small>
+          </button>
+          <button class="pattern-btn" data-pattern="row" aria-pressed="false">
+            <svg viewBox="0 0 48 30">
+              <path d="M8 7h32M8 23h32M14 7l8 16M24 7l8 16M34 7l-8 16" stroke="#426282" stroke-width="1" fill="none"/>
+              <g fill="#39c5ff"><circle cx="10" cy="7" r="3"/><circle cx="24" cy="7" r="3"/><circle cx="38" cy="7" r="3"/></g>
+              <g fill="#ff8a3d"><circle cx="10" cy="23" r="3"/><circle cx="24" cy="23" r="3"/><circle cx="38" cy="23" r="3"/></g>
+            </svg>
+            <span>行列</span><small>典型 460 m</small>
+          </button>
+        </div>
+        <div class="hint">切换井网会载入预置典型井距；之后可直接在平面图中<b>拖动任意井口</b>，井距、临界判定和温度场立即重算。</div>
+      </section>
+
+      <section class="control-section">
+        <h2 class="control-title">运行参数 <span class="num">02</span></h2>
+        <div class="range-block">
+          <div class="range-head"><label for="flowSlider">回灌井总流量</label><output id="flowValue">90 m³/h</output></div>
+          <input id="flowSlider" type="range" min="40" max="260" step="5" value="90" />
+          <div class="range-ticks"><span>40</span><span>150</span><span>260</span></div>
+        </div>
+        <div class="range-block">
+          <div class="range-head"><label for="timeSlider">热田演化时间</label><output id="timeValue">4.0 a</output></div>
+          <input id="timeSlider" type="range" min="0" max="30" step="0.1" value="4" />
+          <div class="range-ticks"><span>0 a</span><span>15 a</span><span>30 a</span></div>
+        </div>
+        <div class="range-block">
+          <div class="range-head"><label for="speedSlider">播放速度</label><output id="speedValue">0.8 a/s</output></div>
+          <input id="speedSlider" type="range" min="0.1" max="3" step="0.1" value="0.8" />
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="playBtn">⏸ 暂停</button>
+          <button class="btn" id="resetTimeBtn">↺ 回到零年</button>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <h2 class="control-title">视图叠加 <span class="num">03</span></h2>
+        <div class="switch-list">
+          <label class="switch"><span>管道走向</span><input type="checkbox" id="togglePipes" checked /><span class="track"></span></label>
+          <label class="switch"><span>三角形井网连线</span><input type="checkbox" id="toggleMesh" checked /><span class="track"></span></label>
+          <label class="switch"><span>平面冷水羽 / 降温漏斗</span><input type="checkbox" id="togglePlumes" checked /><span class="track"></span></label>
+          <label class="switch"><span>井号与距离标注</span><input type="checkbox" id="toggleLabels" checked /><span class="track"></span></label>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn" id="typicalBtn">📐 恢复典型井距</button>
+          <button class="btn" id="fitBtn">⛶ 全图复位</button>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <h2 class="control-title">判据说明 <span class="num">04</span></h2>
+        <div class="hint" style="margin-top:0">
+          临界井距按设计年限 <b>15 a</b> 和当前回灌流量估算。井距小于临界值时，平面图井口变红、距离线告警，右侧该采井的<b>采热功率曲线标红</b>。
+          <br /><br />
+          点击平面井或剖面井口，两个视图会同步高亮；剖面固定沿选中井与最近异类型井的 <b>A–A′</b> 连线切取。
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <main class="center">
+    <section class="panel plan-panel">
+      <div class="panel-head">
+        <div>
+          <h2>井场平面布置 · PixiJS / pixi-viewport</h2>
+          <p>滚轮缩放，空白处拖拽平移；拖动井口实时改变井距</p>
+        </div>
+        <div class="head-tools">
+          <button class="btn sm icon" id="zoomInBtn" title="放大">＋</button>
+          <button class="btn sm icon" id="zoomOutBtn" title="缩小">－</button>
+          <button class="btn sm" id="fitBtn2">适配场地</button>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="planWrap">
+        <div class="view-hint"><b>操作：</b>滚轮缩放 · 空白拖拽平移 · 拖动彩色井口改井距 · 单击选井</div>
+        <div class="zoom-tools"></div>
+        <div class="plan-legend">
+          <span><i class="legend-swatch" style="background:var(--inj)"></i>回灌井</span>
+          <span><i class="legend-swatch" style="background:var(--prod)"></i>采井</span>
+          <span><i class="legend-swatch" style="background:var(--danger);box-shadow:0 0 8px var(--danger)"></i>热干扰</span>
+          <span><i class="legend-swatch" style="background:rgba(69,227,255,.35)"></i>冷水羽</span>
+        </div>
+        <div class="scale-note">坐标单位：m · 1 px ≈ 1 m</div>
+      </div>
+    </section>
+
+    <section class="panel section-panel">
+      <div class="panel-head">
+        <div>
+          <h2 id="sectionTitle">热储层温度剖面 A–A′</h2>
+          <p id="sectionSub">沿回灌井—采井连线；蓝色为回灌冷水锋面，采井下方可见降温漏斗</p>
+        </div>
+        <div>
+          <div class="legend-bar"></div>
+          <div class="legend-labels"><span>40°C</span><span>85</span><span>135°C</span></div>
+        </div>
+      </div>
+      <div class="section-body">
+        <canvas id="sectionCanvas"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <aside class="panel metrics scroll-thin">
+    <div class="panel-scroll">
+      <div class="banner ok" id="banner">
+        <div class="ico">✓</div>
+        <div id="bannerText">当前井距大于临界值，预计在评价年限内不会发生热突破。</div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi cyan"><div class="label">最近采灌井距</div><div class="value" id="kpiDistance">520<span class="unit">m</span></div></div>
+        <div class="kpi"><div class="label">预测热突破</div><div class="value" id="kpiBreakthrough">16.8<span class="unit">a</span></div></div>
+        <div class="kpi"><div class="label">采井出水温度</div><div class="value" id="kpiTemp">130.5<span class="unit">°C</span></div></div>
+        <div class="kpi ok"><div class="label">单井采热功率</div><div class="value" id="kpiPower">11.8<span class="unit">MWt</span></div></div>
+        <div class="kpi"><div class="label">冷水锋面距回灌井</div><div class="value" id="kpiFront">0<span class="unit">m</span></div></div>
+        <div class="kpi warn"><div class="label">当前临界井距</div><div class="value" id="kpiCritical">360<span class="unit">m</span></div></div>
+      </div>
+
+      <div class="metrics-grid-wide">
+        <div class="chart-card">
+          <div class="chart-head"><h3>各采井采热功率曲线</h3><span>竖线为当前演化时间</span></div>
+          <svg id="timeChart" class="chart-svg" viewBox="0 0 360 222" role="img" aria-label="采热功率时间曲线"></svg>
+          <div class="chart-legend" id="timeLegend"></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-head"><h3>第 15 年总采热功率 — 回灌流量曲线</h3><span id="peakLabel">峰值拐点：—</span></div>
+          <svg id="flowChart" class="chart-svg" viewBox="0 0 360 202" role="img" aria-label="功率流量曲线"></svg>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-head"><h3>三种井网热突破时间对比</h3><span>按各自典型井距</span></div>
+          <div class="compare-list" id="compareList"></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-head"><h3>井列表 / 点选联动</h3><span>红色=已热干扰</span></div>
+          <div class="well-list" id="wellList"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
+<script>window.pixi_viewport = window.pixi_viewport || {};</script>
+<script src="https://cdn.jsdelivr.net/npm/pixi-viewport@4.38.0/dist/viewport.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
