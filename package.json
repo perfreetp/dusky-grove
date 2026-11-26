@@ -1,0 +1,13 @@
+{
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  },
+  "name": "ice-crevasse-pulleys",
+  "version": "1.0.0",
+  "description": "冰裂缝滑轮救援模拟：绳速比、摩擦与停滞",
+  "scripts": {
+    "start": "node tools/serve.js",
+    "test": "node tools/test.js",
+    "verify": "node tools/interact.js"
+  }
+}
