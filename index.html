@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>冰川雪桥日照通行模拟</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PixiJS · pixi-viewport · 俯视冰川地形</p>
+          <h1>冰裂缝雪桥：太阳与阴影通行窗口</h1>
+        </div>
+        <div class="topbar-badge" id="route-summary">正在计算结组路线…</div>
+      </header>
+
+      <main class="layout">
+        <section class="stage-panel" aria-label="冰川地形视图">
+          <div id="pixi-stage"></div>
+
+          <div class="stage-hud">
+            <div class="compass" aria-hidden="true">
+              <span class="compass-n">N</span>
+              <span class="compass-e">E</span>
+              <span class="compass-s">S</span>
+              <span class="compass-w">W</span>
+              <div class="compass-ring"></div>
+              <div class="sun-arrow" id="sun-arrow"></div>
+              <div class="slope-arrow" id="slope-arrow"></div>
+              <div class="compass-center"></div>
+            </div>
+            <div class="hud-readout" id="hud-readout">阴影方向计算中…</div>
+          </div>
+
+          <div class="stage-toolbar">
+            <button type="button" class="tool-button" id="reset-view">复位视野</button>
+            <button type="button" class="tool-button" id="zoom-in">＋</button>
+            <button type="button" class="tool-button" id="zoom-out">－</button>
+          </div>
+
+          <div class="stage-hint">滚轮缩放 · 拖拽平移 · 点击白色雪桥查看厚度与通行判定</div>
+        </section>
+
+        <aside class="sidebar">
+          <section class="card control-card">
+            <div class="card-title-row">
+              <h2>太阳拖动台</h2>
+              <button type="button" class="play-button" id="play-time">▶ 从清晨演示</button>
+            </div>
+
+            <label class="control">
+              <span class="control-label">
+                <span>时刻</span>
+                <output id="time-value">07:00</output>
+              </span>
+              <input id="time-slider" type="range" min="6" max="12" step="0.05" value="7" />
+              <span class="range-ends"><span>06:00 清晨</span><span>12:00 正午</span></span>
+            </label>
+
+            <label class="control">
+              <span class="control-label">
+                <span>太阳方位角（北=0°，东=90°，南=180°）</span>
+                <output id="azimuth-value">110°</output>
+              </span>
+              <input id="azimuth-slider" type="range" min="0" max="360" step="1" value="110" />
+            </label>
+
+            <label class="control">
+              <span class="control-label">
+                <span>太阳高度角</span>
+                <output id="elevation-value">21°</output>
+              </span>
+              <input id="elevation-slider" type="range" min="2" max="89" step="1" value="21" />
+            </label>
+
+            <label class="control compact">
+              <span class="control-label">
+                <span>冰川坡度</span>
+                <output id="slope-value">17°</output>
+              </span>
+              <input id="slope-slider" type="range" min="5" max="35" step="1" value="17" />
+            </label>
+
+            <p class="formula-note" id="vector-note"></p>
+          </section>
+
+          <section class="card detail-card" id="detail-panel" aria-live="polite"></section>
+
+          <section class="card forecast-card">
+            <div class="card-title-row">
+              <h2>三桥窗口次序</h2>
+            </div>
+            <div id="closure-ranking" class="closure-ranking"></div>
+            <div id="bridge-list" class="bridge-list"></div>
+          </section>
+
+          <section class="card legend-card">
+            <h2>图面明度与判定</h2>
+            <div class="legend-grid">
+              <span><i class="swatch snow"></i>雪桥面 / 雪檐</span>
+              <span><i class="swatch wall-lit"></i>受光冰壁</span>
+              <span><i class="swatch wall-dark"></i>背光阴壁</span>
+              <span><i class="swatch bottom"></i>梯形槽底</span>
+              <span><i class="swatch shadow"></i>移动投影</span>
+              <span><i class="swatch portal"></i>桥下厚阴影</span>
+            </div>
+            <p class="rule-note">
+              可通行条件：① 坡面法线与太阳向量夹角小于掠射阈值，桥面被直射照亮；
+              ② 移动阴影覆盖率 <strong>&lt; 98.5%</strong>，没有盖住雪桥全宽。
+              厚度只改变桥端阴影浓度与侧栏数据，不替代这两个条件。
+            </p>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

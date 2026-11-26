@@ -1,0 +1,26 @@
+{
+  "name": "glacier-sun-bridges",
+  "version": "1.0.0",
+  "description": "PixiJS top-down glacier crevasse and snow-bridge sun/shadow simulation",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "check": "node scripts/check-model.mjs"
+  },
+  "keywords": [
+    "pixijs",
+    "pixi-viewport",
+    "glacier",
+    "simulation"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "pixi-viewport": "^7.0.3",
+    "pixi.js": "^8.23.0"
+  },
+  "devDependencies": {
+    "vite": "^8.4.0"
+  }
+}
