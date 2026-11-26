@@ -1,0 +1,87 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>三维断层地层剖切实验</title>
+<link rel="stylesheet" href="./styles.css" />
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>三维断层地层剖切实验</h1>
+        <p>起伏层位 · 倾斜断层 · 振幅色带 · 走向/倾向剖面</p>
+      </div>
+      <div class="preset-pill" id="presetPill">预设：H3 临界错断</div>
+    </header>
+
+    <main class="layout">
+      <section class="card view-card" id="viewCard">
+        <div id="threeHost"></div>
+        <div class="view-overlay">
+          <span class="badge" id="modeBadge">倾向剖面 · X 固定</span>
+          <span class="hint">拖动青色剖面/圆球移动；空白处旋转；滚轮缩放</span>
+        </div>
+        <button class="btn ghost" id="resetView" type="button">复位视角</button>
+      </section>
+
+      <aside class="side">
+        <section class="card controls">
+          <div class="segmented" role="group" aria-label="剖切方向">
+            <button type="button" id="modeStrike">走向剖切（X 方向）</button>
+            <button type="button" id="modeDip" class="active">倾向剖切（Y 方向）</button>
+          </div>
+
+          <label class="control">
+            <span class="control-label">
+              <b>剖切面位置</b>
+              <output id="sliceValue">X = −2.80 km</output>
+            </span>
+            <input id="sliceSlider" type="range" min="-4.8" max="4.8" step="0.01" value="-2.8" />
+          </label>
+
+          <label class="control">
+            <span class="control-label">
+              <b>断层落差</b>
+              <output id="throwValue">0.58 km</output>
+            </span>
+            <input id="throwSlider" type="range" min="0" max="2.2" step="0.01" value="0.58" />
+          </label>
+
+          <div class="button-row">
+            <button class="btn primary" id="playBtn" type="button">▶ 自动推进</button>
+            <button class="btn" id="alignBtn" type="button">跳到对齐位置</button>
+            <button class="btn" id="presetBtn" type="button">恢复预设</button>
+          </div>
+
+          <div class="stats">
+            <div><span>当前剖面错距</span><strong id="offsetReadout">0.58 km</strong></div>
+            <div><span>可追踪层位</span><strong id="layerReadout">7 层</strong></div>
+          </div>
+          <p class="explain" id="modeExplain"></p>
+        </section>
+
+        <section class="card profile-card">
+          <div class="profile-head">
+            <h2>实时振幅剖面</h2>
+            <div class="legend" aria-label="振幅色标：负振幅偏冷，正振幅偏暖">
+              <span>负/冷</span>
+              <i class="colorbar"></i>
+              <span>正/暖</span>
+            </div>
+          </div>
+          <div id="profileWrap">
+            <canvas id="profileCanvas" width="880" height="560" aria-label="地层振幅剖面图，悬停查看深度和振幅"></canvas>
+            <div id="hoverTip" class="tip" hidden></div>
+          </div>
+          <p class="footnote">金色虚线为预设临界错断层 H3；悬停剖面时仅显示该点层位深度与振幅。</p>
+        </section>
+      </aside>
+    </main>
+  </div>
+  <script type="module" src="./main.js"></script>
