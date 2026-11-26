@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>巡检云台传动联动仿真</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="scene" aria-label="巡检云台三维模型"></canvas>
+
+    <div id="stopCard" class="floating-card" hidden>
+      <div class="floating-head">
+        <strong id="stopCardTitle">限位挡块</strong>
+        <button id="stopClose" class="icon-btn" type="button" aria-label="关闭">×</button>
+      </div>
+      <div id="stopCardBody"></div>
+    </div>
+
+    <div id="viewBadge" class="view-badge">外壳闭合：拖动蓝色侧板把手打开传动舱</div>
+    <div id="hint" class="hint">拖动侧板把手开壳 · 空白处旋转视角 · 滚轮缩放 · 点击限位挡块</div>
+    <div id="webglError" class="webgl-error" hidden>Three.js 或网络资源加载失败，请检查网络后刷新。</div>
+  </main>
+
+  <aside id="sidebar">
+    <header class="hero">
+      <div class="kicker">THREE.JS · KINEMATIC LINKAGE</div>
+      <h1>巡检云台传动台</h1>
+      <p>打开侧板可查看俯仰轴、蜗轮蜗杆、反向啮合齿轮与两个限位挡块。所有角度共用同一运动状态。</p>
+    </header>
+
+    <section class="card">
+      <div class="card-title-row">
+        <h2>拍摄扇区 / 目标线</h2>
+        <span id="crossBadge" class="badge neutral">等待</span>
+      </div>
+      <svg id="chart" viewBox="0 0 360 300" role="img" aria-label="俯仰角对应的拍摄扇区侧视图">
+        <rect x="0" y="0" width="360" height="300" rx="14" class="svg-bg"></rect>
+        <g id="chartGrid"></g>
+        <line id="groundLine" class="ground-line"></line>
+        <g id="targetGantry"></g>
+        <line id="targetRay" class="target-ray"></line>
+        <line id="limitRay" class="limit-ray"></line>
+        <path id="sectorPath" class="sector-path"></path>
+        <line id="edgeHigh" class="edge-high"></line>
+        <line id="edgeLow" class="edge-low"></line>
+        <line id="aimLine" class="aim-line"></line>
+        <circle id="cameraDot" r="5.5" class="camera-dot"></circle>
+        <circle id="targetDot" r="5" class="target-dot"></circle>
+        <circle id="crossDot" r="4.5" class="cross-dot"></circle>
+        <g id="tapeLayer"></g>
+      </svg>
+      <div class="legend">
+        <span><i class="sw sector"></i>拍摄扇区</span>
+        <span><i class="sw target"></i>巡检目标线</span>
+        <span><i class="sw limit"></i>下限位角</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>联动控制</h2>
+
+      <div class="control">
+        <div class="label-row">
+          <label for="pitchSlider">俯仰滑块 α（传动链输入角）</label>
+          <output id="cmdVal">10.00°</output>
+        </div>
+        <input id="pitchSlider" type="range" min="-35" max="15" step="0.05" value="10">
+        <div class="range-note">
+          <span>−28° 上限位</span>
+          <span>10° 下限位</span>
+          <span class="danger-text">&gt;10° 为压紧虚位区</span>
+        </div>
+      </div>
+
+      <div class="button-grid">
+        <button id="presetBtn" class="primary" type="button">预置：刚好顶到下限位</button>
+        <button id="wiggleBtn" type="button">开始间隙往复微动</button>
+        <button id="coverBtn" type="button">打开侧板</button>
+        <button id="resetViewBtn" type="button">复位视角</button>
+      </div>
+
+      <div class="control compact">
+        <div class="label-row">
+          <label for="backlashSlider">传动间隙 B（输出轴总虚位）</label>
+          <output id="backlashVal">0.80°</output>
+        </div>
+        <input id="backlashSlider" type="range" min="0" max="3" step="0.05" value="0.8">
+        <div class="range-note"><span>半间隙 h = B/2</span><span id="halfGapVal">0.40°</span></div>
+      </div>
+    </section>
+
+    <section class="card readout-card">
+      <h2>严格联动读数</h2>
+      <div class="readout-grid">
+        <div><span>实际俯仰 θ</span><strong id="pitchVal">10.00°</strong></div>
+        <div><span>限位状态</span><strong id="contactVal" class="ok">顶住下限位</strong></div>
+        <div><span>扇区下缘</span><strong id="edgeVal">15.00°</strong></div>
+        <div><span>越过目标线</span><strong id="crossVal">+0.50°</strong></div>
+        <div><span>往复越过次数</span><strong id="crossCountVal">0</strong></div>
+        <div><span>俯仰角速度</span><strong id="speedPitch">0.0 °/s</strong></div>
+      </div>
+
+      <div class="limit-diffs">
+        <div><span>θ − 下限位(+10°)</span><strong id="deltaLower">0.000°</strong></div>
+        <div><span>θ − 上限位(−28°)</span><strong id="deltaUpper">38.000°</strong></div>
+      </div>
+    </section>
+
+    <section class="card gear-card">
+      <h2>齿数决定转速与反向</h2>
+      <div class="gear-formula" id="ratioText"></div>
+      <div class="readout-grid three">
+        <div><span>电机齿 z₁=12</span><strong id="speedPinion">0 rpm</strong></div>
+        <div><span>啮合齿 z₂=24</span><strong id="speedSpur">0 rpm</strong></div>
+        <div><span>蜗杆头数=1</span><strong id="speedWorm">0 rpm</strong></div>
+        <div><span>蜗轮 z₃=36</span><strong id="speedWheel">0 rpm</strong></div>
+        <div><span>外啮合方向</span><strong class="opposite">z₁ ⇄ z₂ 反向</strong></div>
+        <div><span>总传动比</span><strong>72 : 1</strong></div>
+      </div>
+    </section>
+
+    <section class="card stop-inspector">
+      <h2>限位挡块检查器</h2>
+      <p class="muted">直接点击三维模型中的红色或橙色挡块；也可使用下面按钮选择。</p>
+      <div class="button-grid two">
+        <button id="selectLowerBtn" type="button">点选下限位挡块</button>
+        <button id="selectUpperBtn" type="button">点选上限位挡块</button>
+      </div>
+      <dl id="stopDl" class="stop-dl">
+        <dt>尚未选择</dt>
+        <dd>点击挡块后，这里和悬浮卡会显示当前俯仰角与限位角的严格差值。</dd>
+      </dl>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
