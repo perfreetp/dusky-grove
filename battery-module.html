@@ -1,0 +1,454 @@
+<title>电池模组装配仿真</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#131824; --panel2:#0e1320; --fg:#e6ecf5; --muted:#8b96a9;
+    --accent:#4da3ff; --ok:#35d07f; --warn:#ffcc4d; --danger:#ff4d4d; --line:#232b3d;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--fg); margin:0; min-height:100vh;
+    display:flex; flex-direction:column; font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    padding-left:max(16px, env(safe-area-inset-left, 0px));
+    padding-right:max(16px, env(safe-area-inset-right, 0px));
+    padding-block:12px; gap:12px;
+  }
+  header{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  header h1{font-size:18px; margin:0; font-weight:600; letter-spacing:.5px}
+  header .sub{color:var(--muted); font-size:12px}
+  #lamp{display:inline-flex; align-items:center; gap:7px; padding:4px 12px; border-radius:20px;
+    background:var(--panel); border:1px solid var(--line); font-size:12.5px; margin-left:auto}
+  #lampDot{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  #lamp.bad #lampDot{background:var(--danger);box-shadow:0 0 10px var(--danger);animation:blink .5s infinite alternate}
+  @keyframes blink{from{opacity:1}to{opacity:.25}}
+  main{flex:1; display:flex; gap:12px; min-height:0}
+  #scene{flex:1; position:relative; min-height:460px; border:1px solid var(--line); border-radius:12px;
+    overflow:hidden; background:radial-gradient(1200px 600px at 50% 20%, #141a28 0%, #0b0e14 70%)}
+  #scene canvas{display:block}
+  #banner{position:absolute; top:12px; left:50%; transform:translateX(-50%); max-width:92%;
+    padding:8px 18px; border-radius:8px; font-size:13.5px; background:rgba(20,26,40,.92);
+    border:1px solid var(--line); pointer-events:none; opacity:0; transition:opacity .25s; text-align:center; z-index:5}
+  #banner.show{opacity:1}
+  #banner.err{border-color:var(--danger); color:#ffb3b3; background:rgba(60,14,14,.92)}
+  #banner.ok{border-color:var(--ok); color:#b9f4d6}
+  #hint{position:absolute; bottom:10px; left:12px; color:var(--muted); font-size:11.5px; pointer-events:none; z-index:5}
+  aside{width:330px; flex:none; display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height:calc(100vh - 90px)}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+  .card h2{font-size:13px; margin:0 0 10px; color:var(--muted); font-weight:600; letter-spacing:1px; text-transform:uppercase}
+  .row{display:flex; align-items:center; gap:10px; margin:7px 0; font-size:13px}
+  .row .lbl{width:86px; color:var(--muted); flex:none}
+  .row .val{margin-left:auto; font-variant-numeric:tabular-nums; font-size:12.5px}
+  input[type=range]{flex:1; accent-color:var(--accent)}
+  .bar{flex:1; height:8px; background:var(--panel2); border-radius:5px; overflow:hidden; border:1px solid var(--line)}
+  .bar>i{display:block; height:100%; width:0%; background:var(--accent); border-radius:5px; transition:width .08s linear}
+  .bar.ratio>i{background:var(--ok)}
+  .cellrow{display:flex; align-items:center; gap:9px; margin:6px 0; font-size:12.5px}
+  .cellrow .nm{width:30px; font-weight:600}
+  .cellrow .st{width:52px; text-align:right; color:var(--muted); font-size:11.5px}
+  .cellrow.next .nm{color:var(--accent)}
+  .cellrow.lock .nm{color:var(--danger)}
+  .cellrow.lock .st{color:var(--danger)}
+  .btns{display:flex; gap:8px}
+  button{flex:1; padding:9px 0; border-radius:8px; border:1px solid var(--line); background:var(--panel2);
+    color:var(--fg); font-size:13px; cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#06121f; font-weight:600}
+  button:disabled{opacity:.45; cursor:default}
+  .legend{display:flex; gap:12px; font-size:11.5px; color:var(--muted); flex-wrap:wrap}
+  .sw{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px}
+  #worst{font-size:12.5px; color:var(--warn)}
+  @media (max-width:860px){
+    main{flex-direction:column}
+    #scene{min-height:52vh}
+    aside{width:100%; max-height:none}
+  }
+</style>
+
+<header>
+  <h1>电池模组装配仿真</h1>
+  <span class="sub">方形电芯 · 弹性端板 · 实时 AABB 干涉检测</span>
+  <span id="lamp"><span id="lampDot"></span><span id="lampTxt">正常</span></span>
+</header>
+
+<main>
+  <div id="scene">
+    <div id="banner"></div>
+    <div id="hint">拖动电芯沿导轨向下推入 · 拖拽空白处旋转视角 · 滚轮缩放</div>
+  </div>
+  <aside>
+    <div class="card">
+      <h2>压紧力</h2>
+      <div class="row"><span class="lbl">夹紧力 F</span>
+        <input id="force" type="range" min="0" max="100" value="50">
+        <span class="val" id="forceVal">50%</span></div>
+      <div class="row"><span class="lbl">电芯间隙 g</span><div class="bar"><i id="gBar"></i></div><span class="val" id="gVal">–</span></div>
+      <div class="row"><span class="lbl">端板变形 δ</span><div class="bar"><i id="dBar" style="background:var(--warn)"></i></div><span class="val" id="dVal">–</span></div>
+    </div>
+    <div class="card">
+      <h2>装配顺序(预设)</h2>
+      <div id="cells"></div>
+      <div class="btns" style="margin-top:10px">
+        <button id="demo" class="primary">▶ 自动装配演示</button>
+        <button id="reset">复位</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>干涉监测</h2>
+      <div class="row"><span class="lbl">最大干涉比</span><div class="bar ratio"><i id="rBar"></i></div><span class="val" id="rVal">0%</span></div>
+      <div class="row"><span class="lbl">最严重区域</span><span class="val" id="worst">无</span></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#35d07f"></span>&lt;50%</span>
+        <span><span class="sw" style="background:#ffcc4d"></span>50–100%</span>
+        <span><span class="sw" style="background:#ff4d4d"></span>≥100% 闪红锁定</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:8px">
+        允许干涉体积:端板 30000 mm³ · 侧板 1500 mm³。干涉由电芯/端板/侧板的实际包围盒相交计算。</div>
+    </div>
+  </aside>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/* ================= 参数(经离线标定:前5颗安全,第6颗 ~57% 深度触发临界) ================= */
+const T0=30, ALPHA=0.15, G0=6, GMIN=2, LF=209.25;      // 电芯厚/楔形率/间隙/框架内宽
+const H=90, D=100, SG=2.5, PT=6, PH=110, HST=130;      // 电芯高/深, 侧板间隙, 板厚, 板高,  staging高度
+const N=6;
+const WSKEW=[1,0.45,0.2,0.2,0.45,1];                   // 端板变形对各槽位的"顶偏"权重
+const VMAX_END=30000, VMAX_SIDE=1500;                  // 允许干涉体积 mm³
+const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
+
+const state={ depths:new Array(N).fill(0), safe:new Array(N).fill(0), F:0.5, locked:false, demo:false };
+
+/* ================= 布局求解(与标定模型一致) ================= */
+function solveLayout(){
+  const d=state.depths, F=state.F, ins=[];
+  d.forEach((v,i)=>{ if(v>0.05) ins.push(i); });
+  const g0=Math.max(GMIN, G0*(1-0.55*F));
+  const t=d.map(v=>T0*(sstep(0.05,0.6,v)+ALPHA*v));    // 楔形电芯有效厚度随推入深度增大
+  let delta=0, g=g0;
+  if(ins.length){
+    const W=ins.reduce((s,i)=>s+t[i],0)+(ins.length-1)*g;
+    const E=W-LF;                                       // 总宽超出框架内宽的量
+    if(E>0){
+      const absorb=Math.min(E,(g-GMIN)*(ins.length-1)); // 先压缩电芯间隙
+      g=g-absorb/(ins.length-1);
+      delta=(E-absorb)/2*(1.15-0.3*F);                  // 剩余撑开端板(每侧)
+    }
+    g=Math.max(GMIN*0.7, g-0.2*delta);                  // 端板变形反挤,间隙进一步变小
+  }
+  const pos=new Array(N).fill(null);
+  if(ins.length){
+    const Wtot=ins.reduce((s,i)=>s+t[i],0)+(ins.length-1)*g;
+    let cur=-Wtot/2;
+    ins.forEach(i=>{ pos[i]=cur+t[i]/2; cur+=t[i]+g; });
+  }
+  // 未推入电芯的悬停X:插值到其槽位将来位置
+  const hover=new Array(N).fill(0);
+  for(let i=0;i<N;i++){
+    if(pos[i]!==null){ hover[i]=pos[i]; continue; }
+    let p=-1,n=-1;
+    for(let j=i-1;j>=0;j--) if(pos[j]!==null){p=j;break;}
+    for(let j=i+1;j<N;j++) if(pos[j]!==null){n=j;break;}
+    if(p>=0&&n>=0) hover[i]=((pos[p]+t[p]/2)+(pos[n]-t[n]/2))/2;
+    else if(p>=0) hover[i]=pos[p]+t[p]/2+g+T0/2;
+    else if(n>=0) hover[i]=pos[n]-t[n]/2-g-T0/2;
+    else hover[i]=(i-(N-1)/2)*(T0+G0);
+  }
+  return {g,delta,pos,hover,t};
+}
+
+/* ================= 场景 ================= */
+const container=document.getElementById('scene');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,1,1,3000);
+camera.position.set(215,195,320);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.target.set(0,55,0); controls.enableDamping=true; controls.dampingFactor=0.08;
+controls.minDistance=150; controls.maxDistance=800; controls.maxPolarAngle=1.52;
+
+scene.add(new THREE.HemisphereLight(0x8fb8ff,0x14171f,0.85));
+const sun=new THREE.DirectionalLight(0xffffff,0.95);
+sun.position.set(140,240,160); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-260,right:260,top:260,bottom:-260,far:800});
+scene.add(sun);
+
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(1200,1200),
+  new THREE.MeshStandardMaterial({color:0x0e1220,roughness:1}));
+ground.rotation.x=-Math.PI/2; ground.position.y=-6.4; ground.receiveShadow=true; scene.add(ground);
+const grid=new THREE.GridHelper(900,45,0x223050,0x182034); grid.position.y=-6.3; scene.add(grid);
+
+/* 框架:底托 + 端板(可弯曲) + 侧板 + 导轨 */
+const tray=new THREE.Mesh(new THREE.BoxGeometry(LF+2*PT+70,6,D+2*SG+2*PT+36),
+  new THREE.MeshStandardMaterial({color:0x232a3a,roughness:.8,metalness:.3}));
+tray.position.y=-3; tray.receiveShadow=true; scene.add(tray);
+
+function makeEndPlate(){
+  const geo=new THREE.BoxGeometry(PT,PH,D+8,1,24,4);
+  const mat=new THREE.MeshStandardMaterial({color:0x9fb0c8,roughness:.35,metalness:.65});
+  const m=new THREE.Mesh(geo,mat); m.castShadow=true; m.receiveShadow=true;
+  m.userData.base=geo.attributes.position.array.slice();
+  scene.add(m); return m;
+}
+const plateL=makeEndPlate(), plateR=makeEndPlate();
+plateL.position.y=PH/2; plateR.position.y=PH/2;
+
+const sideMat=new THREE.MeshStandardMaterial({color:0x5f6b80,roughness:.45,metalness:.55});
+const sideF=new THREE.Mesh(new THREE.BoxGeometry(LF+2*PT+30,PH,PT),sideMat);
+const sideB=sideF.clone();
+sideF.position.set(0,PH/2, D/2+SG+PT/2); sideB.position.set(0,PH/2,-(D/2+SG+PT/2));
+sideF.castShadow=sideB.castShadow=true; sideF.receiveShadow=sideB.receiveShadow=true;
+scene.add(sideF,sideB);
+
+/* 导轨(装饰) */
+const railMat=new THREE.MeshStandardMaterial({color:0x3a4558,roughness:.5,metalness:.6});
+[-1,1].forEach(s=>{
+  const rail=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,HST+PH+30,12),railMat);
+  rail.position.set(s*(LF/2+PT+16),(HST+PH+30)/2-6,0); rail.castShadow=true; scene.add(rail);
+});
+const beam=new THREE.Mesh(new THREE.BoxGeometry(LF+2*PT+32,4,5),railMat);
+beam.position.set(0,HST+PH+22,0); scene.add(beam);
+
+/* 电芯:楔形(插入端更厚), 刚体 */
+const cells=[];
+for(let i=0;i<N;i++){
+  const geo=new THREE.BoxGeometry(T0,H,D,1,8,1);
+  const p=geo.attributes.position;
+  for(let v=0;v<p.count;v++){
+    const y=p.getY(v), f=1+ALPHA*(0.5-y/H);           // 底部(插入端)更厚
+    p.setX(v,p.getX(v)*f);
+  }
+  geo.computeVertexNormals();
+  geo.computeBoundingBox();                           // 干涉判定用几何体包围盒(不含编号Sprite)
+  const hue=0.52+i*0.045;
+  const mat=new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(hue,.55,.5),
+    roughness:.45,metalness:.25,emissive:0x000000});
+  const m=new THREE.Mesh(geo,mat); m.castShadow=true; m.receiveShadow=true;
+  m.userData.idx=i;
+  // 编号标签
+  const cv=document.createElement('canvas'); cv.width=cv.height=256;
+  const cx=cv.getContext('2d'); cx.font='bold 150px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
+  cx.strokeStyle='rgba(0,0,0,.75)'; cx.lineWidth=16; cx.strokeText('C'+(i+1),128,138);
+  cx.fillStyle='#fff'; cx.fillText('C'+(i+1),128,138);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:true}));
+  spr.scale.set(26,26,1); spr.position.set(0,8,D/2+4); m.add(spr);
+  scene.add(m); cells.push(m);
+}
+
+/* 干涉区域高亮池 */
+const POOL=N*4, overlays=[];
+for(let i=0;i<POOL;i++){
+  const o=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),
+    new THREE.MeshBasicMaterial({transparent:true,opacity:.55,depthTest:false}));
+  o.visible=false; o.renderOrder=999; scene.add(o); overlays.push(o);
+}
+
+/* ================= 物理应用 + 干涉检测 ================= */
+const PLATE_NAMES=['左端板','右端板','前侧板','后侧板'];
+const boxTmp=new THREE.Box3();
+let phys={g:G0,delta:0,maxR:0,worst:null,pairs:[]};
+
+function updatePhysics(){
+  const L=solveLayout();
+  const bend=0.5*L.delta;
+  // 端板:整体外移 delta + 弯曲 bend(两端固定,中部外鼓)
+  [plateL,plateR].forEach((pl,k)=>{
+    const sgn=k===0?-1:1;
+    pl.position.x=sgn*(LF/2+L.delta+PT/2);
+    const p=pl.geometry.attributes.position, base=pl.userData.base;
+    for(let v=0;v<p.count;v++){
+      const y=base[v*3+1], yn=(y+PH/2)/PH;
+      p.setX(v, base[v*3] + sgn*bend*Math.sin(Math.PI*yn));
+    }
+    p.needsUpdate=true; pl.geometry.computeVertexNormals();
+  });
+  // 电芯位姿(含端板顶偏)
+  for(let i=0;i<N;i++){
+    const d=state.depths[i], m=cells[i], ins=d>0.05;
+    const s=L.delta*WSKEW[i]*d;
+    m.position.x=ins?L.pos[i]:L.hover[i];
+    m.position.y=(1-d)*HST+H/2;
+    m.position.z=0.9*s*(i%2?1:-1);
+    m.rotation.z=0.012*s*(i<3?1:-1);
+    m.rotation.y=0.010*s*(i%2?1:-1);
+    m.visible=true;
+  }
+  scene.updateMatrixWorld(true);
+  // 板件 AABB(解析,即变形后实际包围盒)
+  const o=bend, xo=LF/2+L.delta;
+  const plateBox=[
+    {t:'end', x1:-(xo+PT+o),x2:-xo, y1:0,y2:PH, z1:-(D/2+4),z2:D/2+4},
+    {t:'end', x1:xo,x2:xo+PT+o, y1:0,y2:PH, z1:-(D/2+4),z2:D/2+4},
+    {t:'side',x1:-(xo+PT),x2:xo+PT, y1:0,y2:PH, z1:D/2+SG,z2:D/2+SG+PT},
+    {t:'side',x1:-(xo+PT),x2:xo+PT, y1:0,y2:PH, z1:-(D/2+SG+PT),z2:-(D/2+SG)},
+  ];
+  // 电芯实际包围盒 × 4 板件
+  const pairs=[]; let maxR=0, worst=null;
+  for(let i=0;i<N;i++){
+    if(state.depths[i]<=0.05) continue;
+    boxTmp.copy(cells[i].geometry.boundingBox).applyMatrix4(cells[i].matrixWorld);
+    const c={x1:boxTmp.min.x,x2:boxTmp.max.x,y1:boxTmp.min.y,y2:boxTmp.max.y,z1:boxTmp.min.z,z2:boxTmp.max.z};
+    plateBox.forEach((b,pi)=>{
+      const ox=Math.min(c.x2,b.x2)-Math.max(c.x1,b.x1),
+            oy=Math.min(c.y2,b.y2)-Math.max(c.y1,b.y1),
+            oz=Math.min(c.z2,b.z2)-Math.max(c.z1,b.z1);
+      if(ox>0&&oy>0&&oz>0){
+        const v=ox*oy*oz, vmax=b.t==='end'?VMAX_END:VMAX_SIDE, r=v/vmax;
+        pairs.push({cell:i,plate:pi,v,r,
+          cx:(Math.max(c.x1,b.x1)+Math.min(c.x2,b.x2))/2,
+          cy:(Math.max(c.y1,b.y1)+Math.min(c.y2,b.y2))/2,
+          cz:(Math.max(c.z1,b.z1)+Math.min(c.z2,b.z2))/2, ox,oy,oz});
+        if(r>maxR){maxR=r;worst={cell:i,plate:pi,v,r};}
+      }
+    });
+  }
+  phys={g:L.g,delta:L.delta,maxR,worst,pairs};
+  return maxR;
+}
+
+/* ================= UI ================= */
+const $=id=>document.getElementById(id);
+const cellRows=[];
+for(let i=0;i<N;i++){
+  const row=document.createElement('div'); row.className='cellrow'; row.id='cr'+i;
+  row.innerHTML=`<span class="nm">C${i+1}</span><div class="bar"><i></i></div><span class="st">待装</span>`;
+  $('cells').appendChild(row); cellRows.push(row);
+}
+let bannerTimer=null;
+function banner(txt,cls='',sticky=false){
+  const b=$('banner'); b.textContent=txt; b.className='show '+cls;
+  if(bannerTimer) clearTimeout(bannerTimer);
+  if(!sticky) bannerTimer=setTimeout(()=>{b.className='';},3200);
+}
+const colTmp=new THREE.Color();
+function updateUI(t){
+  $('forceVal').textContent=Math.round(state.F*100)+'%';
+  $('gVal').textContent=phys.g.toFixed(2)+' mm'; $('gBar').style.width=(phys.g/G0*100)+'%';
+  $('dVal').textContent=phys.delta.toFixed(2)+' mm'; $('dBar').style.width=Math.min(100,phys.delta/6*100)+'%';
+  const r=phys.maxR;
+  $('rVal').textContent=Math.round(r*100)+'%';
+  $('rBar').style.width=Math.min(100,r*100)+'%';
+  $('rBar').style.background=r>=1?'var(--danger)':r>=0.5?'var(--warn)':'var(--ok)';
+  $('worst').textContent=phys.worst?
+    `C${phys.worst.cell+1} ↔ ${PLATE_NAMES[phys.worst.plate]} · ${Math.round(phys.worst.v)} mm³`:'无';
+  const bad=r>=1;
+  $('lamp').className=bad?'bad':''; $('lampTxt').textContent=bad?'干涉超限':'正常';
+  if(bad && !state.locked){ state.locked=true;
+    banner(`干涉超限!C${phys.worst.cell+1} ↔ ${PLATE_NAMES[phys.worst.plate]} 超出允许值,推入已锁定`,'err',true); }
+  if(!bad && state.locked){ state.locked=false; banner('干涉已解除','ok'); }
+  // 电芯行
+  const next=state.depths.findIndex(v=>v<0.99);
+  for(let i=0;i<N;i++){
+    const d=state.depths[i], row=cellRows[i];
+    row.querySelector('i').style.width=(d*100)+'%';
+    row.classList.toggle('next',i===next&&!state.demo);
+    row.classList.toggle('lock',bad&&phys.worst&&phys.worst.cell===i);
+    row.querySelector('.st').textContent=d<=0.05?'待装':d>=0.99?'到位':(bad&&phys.worst&&phys.worst.cell===i?'锁定':'推入中');
+  }
+  // 下一颗高亮脉冲
+  cells.forEach((m,i)=>{
+    m.material.emissive.setHSL(0.35,i===next?0.5+0.3*Math.sin(t*4):0, i===next?0.12:0);
+  });
+  // 干涉区域高亮
+  overlays.forEach(o=>o.visible=false);
+  phys.pairs.slice(0,POOL).forEach((p,k)=>{
+    const o=overlays[k];
+    o.visible=true;
+    o.position.set(p.cx,p.cy,p.cz); o.scale.set(p.ox,p.oy,p.oz);
+    if(p.r>=1){ const f=0.5+0.5*Math.sin(t*10);
+      o.material.color.setRGB(1,0.15+0.3*f,0.15+0.3*f); o.material.opacity=0.45+0.45*f;
+    }else{
+      colTmp.setHSL((1-Math.min(1,p.r))*0.33,0.9,0.55);
+      o.material.color.copy(colTmp); o.material.opacity=0.5;
+    }
+  });
+}
+
+/* ================= 交互:拖动电芯推入 ================= */
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2();
+let drag=null;
+function ptrWorld(e){
+  const rc=renderer.domElement.getBoundingClientRect();
+  ptr.x=((e.clientX-rc.left)/rc.width)*2-1; ptr.y=-((e.clientY-rc.top)/rc.height)*2+1;
+  ray.setFromCamera(ptr,camera);
+}
+renderer.domElement.addEventListener('pointerdown',e=>{
+  if(state.demo) return;
+  ptrWorld(e);
+  const hit=ray.intersectObjects(cells,false)[0];
+  if(!hit) return;
+  const i=hit.object.userData.idx;
+  const nrm=camera.getWorldDirection(new THREE.Vector3());
+  drag={i,plane:new THREE.Plane().setFromNormalAndCoplanarPoint(nrm,hit.point),
+        y0:hit.point.y, d0:state.depths[i]};
+  controls.enabled=false; renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+  if(!drag) return;
+  ptrWorld(e);
+  const pt=new THREE.Vector3();
+  if(!ray.ray.intersectPlane(drag.plane,pt)) return;
+  const i=drag.i;
+  let nd=Math.min(1,Math.max(0, drag.d0+(drag.y0-pt.y)/HST));
+  if(nd>state.safe[i]){                       // 只有继续推入才受锁定约束
+    state.depths[i]=nd;
+    if(updatePhysics()>=1){ state.depths[i]=state.safe[i]; updatePhysics(); }
+    else state.safe[i]=nd;
+  }else{
+    state.depths[i]=nd; state.safe[i]=nd; updatePhysics();
+  }
+});
+addEventListener('pointerup',()=>{ if(drag){drag=null; controls.enabled=true;} });
+
+/* ================= 按钮 ================= */
+const raf=()=>new Promise(r=>requestAnimationFrame(r));
+$('demo').addEventListener('click',async()=>{
+  if(state.demo) return;
+  state.demo=true; $('demo').disabled=true;
+  banner('自动装配演示:按 C1→C6 顺序推入','',false);
+  for(let i=0;i<N;i++){
+    banner(`推入 C${i+1} …`);
+    while(state.depths[i]<1){
+      if(!state.demo) return;
+      state.depths[i]=Math.min(1,state.depths[i]+0.007);
+      if(updatePhysics()>=1){
+        state.depths[i]=state.safe[i]; updatePhysics();
+        banner(`C${i+1} 在 ${Math.round(state.depths[i]*100)}% 深度处触发干涉超限 — 端板变形顶偏已装电芯,装配失败!`,'err',true);
+        state.demo=false; $('demo').disabled=false; return;
+      }
+      state.safe[i]=state.depths[i];
+      await raf();
+    }
+    await new Promise(r=>setTimeout(r,300));
+  }
+  banner('装配完成','ok'); state.demo=false; $('demo').disabled=false;
+});
+$('reset').addEventListener('click',()=>{
+  state.demo=false; $('demo').disabled=false;
+  state.depths.fill(0); state.safe.fill(0); state.locked=false;
+  updatePhysics(); banner('已复位,可按 C1→C6 顺序重新装配','ok');
+});
+$('force').addEventListener('input',e=>{ state.F=e.target.value/100; });
+
+/* ================= 主循环 ================= */
+function resize(){
+  const w=container.clientWidth,h=container.clientHeight;
+  renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+addEventListener('resize',resize); resize();
+updatePhysics();
+const clock=new THREE.Clock();
+(function loop(){
+  requestAnimationFrame(loop);
+  updatePhysics();
+  updateUI(clock.getElapsedTime());
+  controls.update();
+  renderer.render(scene,camera);
+})();
+</script>
