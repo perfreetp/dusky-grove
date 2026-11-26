@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>短腿柯基 · 骨骼蒙皮实验室</title>
+<style>
+  :root{
+    --panel: rgba(18,20,26,.82); --line: rgba(255,255,255,.12);
+    --fg:#e8ecf3; --dim:#9aa4b4; --accent:#57d9ff; --warn:#ff5a4e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0e1016;
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;color:var(--fg)}
+  canvas#render{display:block;width:100%;height:100%;outline:none;touch-action:none}
+  #panel{
+    position:fixed;top:14px;left:14px;width:268px;max-height:calc(100vh - 28px);
+    overflow:auto;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:14px 14px 12px;backdrop-filter:blur(10px);
+    font-size:13px;z-index:10;
+  }
+  #panel h1{font-size:15px;margin:0 0 2px;letter-spacing:.5px}
+  #panel .sub{color:var(--dim);font-size:11px;margin-bottom:10px}
+  .sec{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+  .sec b{display:block;font-size:12px;color:var(--accent);margin-bottom:7px;font-weight:600}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0}
+  .row label{color:var(--dim);flex:0 0 auto}
+  input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+  .val{width:40px;text-align:right;font-variant-numeric:tabular-nums;color:var(--fg);font-size:12px}
+  button{
+    width:100%;margin:4px 0;padding:8px 10px;border-radius:9px;border:1px solid var(--line);
+    background:rgba(255,255,255,.07);color:var(--fg);font-size:12.5px;cursor:pointer;
+    transition:background .15s
+  }
+  button:hover{background:rgba(87,217,255,.18);border-color:rgba(87,217,255,.45)}
+  button.active{background:rgba(87,217,255,.25);border-color:var(--accent)}
+  .check{display:flex;align-items:center;gap:8px;margin:7px 0;color:var(--dim);cursor:pointer}
+  .check input{accent-color:var(--accent)}
+  #state{
+    margin-top:10px;padding:8px 10px;border-radius:9px;font-size:12px;line-height:1.5;
+    background:rgba(255,90,78,.12);border:1px solid rgba(255,90,78,.35);
+    min-height:34px;color:#ffc9c4;
+  }
+  #state.ok{background:rgba(87,217,255,.1);border-color:rgba(87,217,255,.3);color:#bfeeff}
+  #hint{
+    position:fixed;left:50%;bottom:12px;transform:translateX(-50%);
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:8px 18px;font-size:12px;color:var(--dim);white-space:nowrap;z-index:10;
+  }
+  #hint b{color:var(--accent);font-weight:600}
+  #badge{position:fixed;right:14px;top:14px;font-size:11px;color:var(--dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;z-index:10}
+</style>
+</head>
+<body>
+<canvas id="render" touch-action="none"></canvas>
+
+<div id="panel">
+  <h1>短腿柯基 · 骨骼蒙皮</h1>
+  <div class="sub">Babylon.js 骨骼链 / 距离权重 / 约束求解</div>
+
+  <div class="sec">
+    <b>关节约束</b>
+    <div class="row">
+      <label>角度极限</label>
+      <input id="limit" type="range" min="0" max="1" step="0.01" value="0.7">
+      <span class="val" id="limitVal">70%</span>
+    </div>
+    <div class="row">
+      <label>骨架透明</label>
+      <input id="skelAlpha" type="range" min="0.15" max="1" step="0.01" value="0.55">
+      <span class="val" id="skelAlphaVal">55%</span>
+    </div>
+  </div>
+
+  <div class="sec">
+    <b>显示</b>
+    <label class="check"><input type="checkbox" id="idle"> 待机循环（呼吸 / 摆尾 / 前腿起伏）</label>
+    <label class="check"><input type="checkbox" id="xray"> X 光：骨架透视显示</label>
+    <label class="check"><input type="checkbox" id="weights"> 权重可视化（主影响骨配色）</label>
+  </div>
+
+  <div class="sec">
+    <b>姿势与演示</b>
+    <button id="btnPreset">① 预置：抬起左前腿</button>
+    <button id="btnDemo">② 肘部慢慢弯到极限（鼓包 → 约束 → 恢复）</button>
+    <button id="btnReset">复位到绑定姿势</button>
+  </div>
+
+  <div id="state" class="ok">就绪：拖动青色关节球旋转骨骼</div>
+</div>
+
+<div id="badge">19 根骨骼 · CPU 蒙皮 · 骨胶囊防穿透</div>
+<div id="hint">拖动 <b>关节球</b> 旋转骨骼（父子链联动） · 空白处拖动旋转视角 · 滚轮缩放</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/7.0.0/babylon.min.js"></script>
+<script>
+/* 主 CDN 失败时回退 */
+if (typeof BABYLON === "undefined") {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/babylonjs@7.0.0/babylon.js"><\/script>');
+}
+</script>
+<script>
+"use strict";
+/* =========================================================================
+ * 0. 场景基础
+ * ========================================================================= */
+const canvas = document.getElementById("render");
+const engine = new BABYLON.Engine(canvas, true, { stencil: false, preserveDrawingBuffer: false });
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color4(0.055, 0.063, 0.086, 1);
+
+const camera = new BABYLON.ArcRotateCamera("cam", -0.9, 1.02, 3.1,
+  new BABYLON.Vector3(0, 0.5, 0), scene);
+camera.attachControl(canvas, true);
+camera.wheelDeltaPercentage = 0.015;
+camera.lowerRadiusLimit = 1.4;
+camera.upperRadiusLimit = 7;
+camera.panningSensibility = 0;
+camera.useAutoRotationBehavior = false;
+
+const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0.3, 1, 0.2), scene);
+hemi.intensity = 0.85;
+const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.5, -1, -0.4), scene);
+dir.intensity = 0.55;
+
+/* 程序化网格地面（DynamicTexture，避免引入 materials 扩展包） */
+const gridTex = new BABYLON.DynamicTexture("gridTex", 512, scene, false);
+{
+  const ctx = gridTex.getContext();
+  ctx.fillStyle = "#14171f";
+  ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = "rgba(70,110,135,.28)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i <= 512; i += 32) { ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.moveTo(0, i); ctx.lineTo(512, i); }
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(95,160,190,.55)";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(512, 0); ctx.lineTo(512, 512); ctx.lineTo(0, 512); ctx.closePath(); ctx.stroke();
+  gridTex.update();
+}
+gridTex.uScale = 8;
+gridTex.vScale = 8;
+const grid = new BABYLON.StandardMaterial("grid", scene);
+grid.diffuseTexture = gridTex;
+grid.emissiveTexture = gridTex;          /* 自发光保持贴图原色，不被灯光染蓝 */
+grid.emissiveColor = new BABYLON.Color3(0.28, 0.28, 0.28);
+grid.specularColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 8, height: 8 }, scene);
+ground.material = grid;
+ground.position.y = 0;
+
+/* =========================================================================
+ * 1. 骨骼链定义（绑定姿势，世界坐标；狗沿 -Z 朝向，左为 -X，上为 +Y）
+ *    joint: 主轴铰链的解剖学极限（弧度），副轴给固定小范围
+ * ========================================================================= */
+const V = (x, y, z) => new BABYLON.Vector3(x, y, z);
+const BONE_DEFS = [
+  // name            parent       head                 end(leaf用)          side  sigma  capsule  hinge
+  ["root",          null,        V(0,.62,0),          V(0,.62,.18),        "c", .30, null,  null],
+  ["spine0",        "root",      V(0,.66,-.18),       V(0,.66,.05),        "c", .30, null,  {axis:"x",min:-.35,max:.35,yaw:.5}],
+  ["spine1",        "spine0",    V(0,.68,.22),        V(0,.68,.45),        "c", .30, null,  {axis:"x",min:-.3,max:.3,yaw:.5}],
+  ["neck",          "spine0",    V(0,.78,-.52),       V(0,.86,-.7),        "c", .22, null,  {axis:"x",min:-.7,max:.7,yaw:1}],
+  ["head",          "neck",      V(0,.95,-.8),        V(0,.9,-1.16),       "c", .2,  null,  {axis:"x",min:-.7,max:.7,yaw:1}],
+  ["shoulderL",     "spine0",    V(-.2,.6,-.48),      V(-.21,.4,-.49),     "l", .2,  .055, {axis:"x",min:-.5,max:1.5,yaw:.5}],
+  ["elbowL",        "shoulderL", V(-.21,.36,-.49),    V(-.22,.16,-.5),     "l", .2,  .05,  {axis:"x",min:-.2,max:2.3,yaw:.45}],
+  ["wristL",        "elbowL",    V(-.22,.12,-.5),     V(-.22,.05,-.56),    "l", .17, .045, {axis:"x",min:-.9,max:.9,yaw:.4}],
+  ["shoulderR",     "spine0",    V(.2,.6,-.48),       V(.21,.4,-.49),      "r", .2,  .055, {axis:"x",min:-.5,max:1.5,yaw:.5}],
+  ["elbowR",        "shoulderR", V(.21,.36,-.49),     V(.22,.16,-.5),      "r", .2,  .05,  {axis:"x",min:-.2,max:2.3,yaw:.45}],
+  ["wristR",        "elbowR",    V(.22,.12,-.5),      V(.22,.05,-.56),     "r", .17, .045, {axis:"x",min:-.9,max:.9,yaw:.4}],
+  ["hipL",          "spine1",    V(-.2,.6,.5),        V(-.21,.4,.52),      "l", .2,  .06,  {axis:"x",min:-.7,max:1.2,yaw:.5}],
+  ["kneeL",         "hipL",      V(-.21,.37,.52),     V(-.22,.18,.55),     "l", .2,  .05,  {axis:"x",min:-.3,max:2.2,yaw:.45}],
+  ["ankleL",        "kneeL",     V(-.22,.13,.56),     V(-.22,.06,.5),      "l", .17, .045, {axis:"x",min:-.9,max:.9,yaw:.4}],
+  ["hipR",          "spine1",    V(.2,.6,.5),         V(.21,.4,.52),       "r", .2,  .06,  {axis:"x",min:-.7,max:1.2,yaw:.5}],
+  ["kneeR",         "hipR",      V(.21,.37,.52),      V(.22,.18,.55),      "r", .2,  .05,  {axis:"x",min:-.3,max:2.2,yaw:.45}],
+  ["ankleR",        "kneeR",     V(.22,.13,.56),      V(.22,.06,.5),       "r", .17, .045, {axis:"x",min:-.9,max:.9,yaw:.4}],
+  ["tail0",         "spine1",    V(0,.72,.7),         V(0,.82,.84),        "c", .15, .04,  {axis:"y",min:-.8,max:.8,pitch:.6}],
+  ["tail1",         "tail0",     V(0,.82,.86),        V(0,.9,.98),         "c", .15, .035, {axis:"y",min:-.8,max:.8,pitch:.6}],
+  ["tail2",         "tail1",     V(0,.9,1),           V(0,.95,1.1),        "c", .14, .03,  {axis:"y",min:-.8,max:.8,pitch:.6}],
+  ["tail3",         "tail2",     V(0,.94,1.12),       V(0,.95,1.22),       "c", .13, .025, {axis:"y",min:-.8,max:.8,pitch:.6}],
+];
+const NB = BONE_DEFS.length;
+const boneList = [];
+const byName = Object.create(null);
+
+BONE_DEFS.forEach((d, i) => {
+  const [name, parentName, head, end, side, sigma, capR, hinge] = d;
+  const parent = parentName ? byName[parentName] : null;
+  const localHead = parent ? head.subtract(parent.head) : head.clone();
+  const b = {
+    idx: i, name, parent, head: head.clone(), end: end.clone(),
+    localHead, side, sigma, capR, hinge,
+    ax: 0, ay: 0,           // 用户/姿势设定角（相对绑定姿势）
+    effAx: 0, effAy: 0,     // 加待机、被约束拉回后的实际角
+    force: 0,               // 约束受力 0..1（平滑后）
+    rawForce: 0,
+    restAbs: new BABYLON.Matrix(), abs: new BABYLON.Matrix(),
+    local: new BABYLON.Matrix(), skin: new BABYLON.Matrix(),
+    invRest: new BABYLON.Matrix(),
+    quat: new BABYLON.Quaternion(),
+  };
+  byName[name] = b;
+  boneList.push(b);
+});
+
+/* 绑定姿势绝对矩阵（局部仅平移，无旋转） */
+boneList.forEach(b => {
+  BABYLON.Matrix.TranslationToRef(b.localHead.x, b.localHead.y, b.localHead.z, b.local);
+  if (b.parent) b.local.multiplyToRef(b.parent.restAbs, b.restAbs);
+  else b.restAbs.copyFrom(b.local);
+  b.restAbs.invertToRef(b.invRest);
+});
+
+/* =========================================================================
+ * 2. 程序化柯基网格（单网格，多部件合并；部件在体内重叠缝合）
+ * ========================================================================= */
+const geo = { pos: [], nrm: [], col: [], idx: [] };
+const C_ORANGE = [0.83, 0.5, 0.26], C_DARK = [0.62, 0.34, 0.16],
+      C_CREAM  = [0.93, 0.83, 0.68], C_WHITE = [0.96, 0.94, 0.88],
+      C_NOSE   = [0.16, 0.12, 0.1];
+
+function pushV(p, n, c) {
+  geo.pos.push(p.x, p.y, p.z);
+  geo.nrm.push(n.x, n.y, n.z);
+  geo.col.push(c[0], c[1], c[2]);
+  return geo.pos.length / 3 - 1;
+}
+/* 椭球：colorFn(localDir, worldPos) -> rgb */
+function ellipsoid(center, r, rings, segs, colorFn) {
+  const start = geo.pos.length / 3;
+  for (let i = 0; i <= rings; i++) {
+    const phi = Math.PI * i / rings;
+    const sp = Math.sin(phi), cp = Math.cos(phi);
+    for (let j = 0; j <= segs; j++) {
+      const th = 2 * Math.PI * j / segs;
+      const ct = Math.cos(th), st = Math.sin(th);
+      const d = V(sp * ct, cp, sp * st);
+      const p = V(center.x + r.x * d.x, center.y + r.y * d.y, center.z + r.z * d.z);
+      const n = V(d.x / r.x, d.y / r.y, d.z / r.z).normalize();
+      pushV(p, n, colorFn(d, p));
+    }
+  }
+  const row = segs + 1;
+  for (let i = 0; i < rings; i++)
+    for (let j = 0; j < segs; j++) {
+      const a = start + i * row + j, b = a + row;
+      geo.idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+}
+/* 胶囊（统一车削：下半球 + 圆柱 + 上半球，法线随半球混合） */
+function capsule(p0, p1, rad, colorFn) {
+  const axis = p1.subtract(p0), len = axis.length();
+  const uy = axis.scale(1 / len);
+  const aux = Math.abs(uy.y) < 0.9 ? V(0, 1, 0) : V(1, 0, 0);
+  const ux = BABYLON.Vector3.Cross(aux, uy).normalize();
+  const uz = BABYLON.Vector3.Cross(uy, ux).normalize();
+  const segs = 12, capRings = 4;
+  const rings = [];   /* c=环心, r=半径, rc/ny=法线的径向/轴向分量 */
+  for (let k = 1; k <= capRings; k++) {
+    const a = Math.PI * (1 - k / (capRings + 1));           /* π → π/2 */
+    rings.push({ c: p0.add(uy.scale(rad * Math.cos(a))), r: rad * Math.sin(a), rc: Math.sin(a), ny: Math.cos(a) });
+  }
+  rings.push({ c: p0, r: rad, rc: 1, ny: 0 });
+  rings.push({ c: p1, r: rad, rc: 1, ny: 0 });
+  for (let k = 1; k <= capRings; k++) {
+    const a = Math.PI / 2 * (1 - k / (capRings + 1));       /* π/2 → 0 */
+    rings.push({ c: p1.add(uy.scale(rad * Math.cos(a))), r: rad * Math.sin(a), rc: Math.sin(a), ny: Math.cos(a) });
+  }
+  const rows = rings.map(rg => {
+    const row = [];
+    for (let j = 0; j <= segs; j++) {
+      const phi = 2 * Math.PI * j / segs;
+      const radial = ux.scale(Math.cos(phi)).add(uz.scale(Math.sin(phi)));
+      const p = rg.c.add(radial.scale(rg.r));
+      const n = radial.scale(rg.rc).add(uy.scale(rg.ny)).normalize();
+      row.push(pushV(p, n, colorFn(radial, p)));
+    }
+    return row;
+  });
+  for (let i = 0; i < rows.length - 1; i++)
+    for (let j = 0; j < segs; j++)
+      geo.idx.push(rows[i][j], rows[i + 1][j], rows[i][j + 1],
+        rows[i + 1][j], rows[i + 1][j + 1], rows[i][j + 1]);
+  const tipB = pushV(p0.add(uy.scale(-rad)), uy.scale(-1), colorFn(uy.scale(-1), p0));
+  const tipT = pushV(p1.add(uy.scale(rad)), uy, colorFn(uy, p1));
+  for (let j = 0; j < segs; j++) {
+    geo.idx.push(tipB, rows[0][j + 1], rows[0][j]);
+    geo.idx.push(tipT, rows[rows.length - 1][j], rows[rows.length - 1][j + 1]);
+  }
+}
+/* 盒（半尺寸 h，外法线朝外的绕序） */
+function box(center, h, colorFn) {
+  const defs = [
+    { n: V(1, 0, 0),  u: V(0, 0, -1), v: V(0, 1, 0) },
+    { n: V(-1, 0, 0), u: V(0, 0, 1),  v: V(0, 1, 0) },
+    { n: V(0, 1, 0),  u: V(1, 0, 0),  v: V(0, 0, 1) },
+    { n: V(0, -1, 0), u: V(1, 0, 0),  v: V(0, 0, -1) },
+    { n: V(0, 0, 1),  u: V(1, 0, 0),  v: V(0, 1, 0) },
+    { n: V(0, 0, -1), u: V(-1, 0, 0), v: V(0, 1, 0) },
+  ];
+  for (const f of defs) {
+    const hN = f.n.x ? h.x : f.n.y ? h.y : h.z;
+    const hU = f.u.x ? h.x : f.u.y ? h.y : h.z;
+    const hV = f.v.x ? h.x : f.v.y ? h.y : h.z;
+    const corner = (su, sv) =>
+      center.add(f.n.scale(hN)).add(f.u.scale(su * hU)).add(f.v.scale(sv * hV));
+    const q = [corner(1, 1), corner(-1, 1), corner(-1, -1), corner(1, -1)];
+    const ids = q.map(p => pushV(p, f.n, colorFn(f.n, p)));
+    geo.idx.push(ids[0], ids[1], ids[2], ids[0], ids[2], ids[3]);
+  }
+}
+/* 锥体（耳朵） */
+function cone(base, tip, rad, colorFn) {
+  const axis = tip.subtract(base);
+  const uy = axis.normalize();
+  const aux = Math.abs(uy.y) < 0.9 ? V(0, 1, 0) : V(1, 0, 0);
+  const ux = BABYLON.Vector3.Cross(aux, uy).normalize();
+  const uz = BABYLON.Vector3.Cross(uy, ux).normalize();
+  const segs = 12, ring = [];
+  for (let j = 0; j <= segs; j++) {
+    const phi = 2 * Math.PI * j / segs;
+    const radial = ux.scale(Math.cos(phi) * rad).add(uz.scale(Math.sin(phi) * rad));
+    const p = base.add(radial);
+    const n = radial.normalize();
+    ring.push(pushV(p, n, colorFn(n, p)));
+  }
+  const t = pushV(tip, uy, colorFn(uy, tip));
+  for (let j = 0; j < segs; j++) geo.idx.push(ring[j], t, ring[j + 1]);
+  const bCenter = pushV(base, uy.scale(-1), colorFn(uy, tip));
+  for (let j = 0; j < segs; j++) geo.idx.push(bCenter, ring[j + 1], ring[j]);
+}
+/* 渐细管（尾巴），pts 为中心线点，radii 对应半径 */
+function tube(pts, radii, colorFn) {
+  const segs = 12, rows = [];
+  for (let i = 0; i < pts.length; i++) {
+    const prev = pts[Math.max(0, i - 1)], next = pts[Math.min(pts.length - 1, i + 1)];
+    const tan = next.subtract(prev).normalize();
+    const aux = Math.abs(tan.y) < 0.9 ? V(0, 1, 0) : V(1, 0, 0);
+    const ux = BABYLON.Vector3.Cross(aux, tan).normalize();
+    const uz = BABYLON.Vector3.Cross(tan, ux).normalize();
+    const row = [];
+    for (let j = 0; j <= segs; j++) {
+      const phi = 2 * Math.PI * j / segs;
+      const radial = ux.scale(Math.cos(phi)).add(uz.scale(Math.sin(phi))).normalize();
+      const p = pts[i].add(radial.scale(radii[i]));
+      row.push(pushV(p, radial, colorFn(radial, p, i)));
+    }
+    rows.push(row);
+  }
+  for (let i = 0; i < pts.length - 1; i++)
+    for (let j = 0; j < segs; j++)
+      geo.idx.push(rows[i][j], rows[i + 1][j], rows[i][j + 1],
+        rows[i + 1][j], rows[i + 1][j + 1], rows[i][j + 1]);
+  const tip = pushV(pts[pts.length - 1], pts[pts.length - 1].subtract(pts[pts.length - 2]).normalize(), colorFn(V(0, 1, 0), pts[pts.length - 1], 99));
+  const last = rows[pts.length - 1];
+  for (let j = 0; j < segs; j++) geo.idx.push(last[j], tip, last[j + 1]);
+}
+
+/* ---- 拼装柯基 ---- */
+const bodyColor = (d, p) => {
+  if (p.y < 0.5 || d.y < -0.55) return C_CREAM;          // 腹面奶油色
+  if (d.y > 0.65) return C_DARK;                          // 背鞍
+  return C_ORANGE;
+};
+ellipsoid(V(0, .62, 0), V(.3, .27, .78), 16, 22, bodyColor);                 // 躯干
+ellipsoid(V(0, .76, -.58), V(.21, .23, .27), 10, 16, bodyColor);             // 胸/颈连接
+ellipsoid(V(0, .97, -.93), V(.17, .16, .2), 12, 16, (d, p) =>                 // 头
+  p.y < .9 || d.y < -0.5 ? C_CREAM : C_ORANGE);
+ellipsoid(V(0, .91, -1.14), V(.105, .085, .13), 8, 14, () => C_CREAM);      // 吻部
+ellipsoid(V(0, .9, -1.26), V(.048, .038, .04), 8, 12, () => C_NOSE);        // 鼻
+cone(V(-.1, 1.06, -.86), V(-.14, 1.26, -.82), .075, () => C_DARK);          // 耳
+cone(V(.1, 1.06, -.86), V(.14, 1.26, -.82), .075, () => C_DARK);
+
+const legColor = () => C_CREAM;
+for (const s of [-1, 1]) {
+  /* 前腿：肩 -> 腕 胶囊 + 爪盒 */
+  capsule(V(s * .2, .58, -.48), V(s * .22, .13, -.5), .088, legColor);
+  box(V(s * .22, .055, -.54), V(.095, .055, .12), () => C_WHITE);
+  /* 后腿：髋 -> 跗 胶囊 + 爪盒 */
+  capsule(V(s * .2, .58, .5), V(s * .22, .14, .55), .092, legColor);
+  box(V(s * .22, .055, .58), V(.1, .055, .12), () => C_WHITE);
+}
+tube([V(0,.72,.7), V(0,.82,.85), V(0,.9,.99), V(0,.94,1.11), V(0,.95,1.21)],
+  [.06, .052, .042, .032, .02],
+  (d, p, i) => i >= 3 ? C_CREAM : C_ORANGE);                                  // 尾
+
+const NV = geo.pos.length / 3;
+const restPos = new Float32Array(geo.pos);
+const restNrm = new Float32Array(geo.nrm);
+const baseCol = new Float32Array(geo.col);
+const curPos = new Float32Array(restPos);
+const curNrm = new Float32Array(restNrm);
+const curCol = new Float32Array(baseCol);
+
+/* =========================================================================
+ * 3. 距离权重：到骨段距离的高斯衰减，取 top4，总和严格归一
+ *    肩/肘/膝等关节处两根骨段等距 -> 自然多骨共同影响
+ * ========================================================================= */
+/* 每根骨的距离段：起点 = 父骨 head（root 用自身 head），终点 = 本骨 head */
+const SEG_A = [], SEG_B = [];
+boneList.forEach(b => {
+  const a = b.parent ? b.parent.head : b.head;
+  SEG_A.push(a.x, a.y, a.z);
+  SEG_B.push(b.head.x, b.head.y, b.head.z);
+});
+
+function segDistSq(px, py, pz, ai) {
+  const ax = SEG_A[ai * 3], ay = SEG_A[ai * 3 + 1], az = SEG_A[ai * 3 + 2];
+  const bx = SEG_B[ai * 3], by = SEG_B[ai * 3 + 1], bz = SEG_B[ai * 3 + 2];
+  const dx = bx - ax, dy = by - ay, dz = bz - az;
+  const L2 = dx * dx + dy * dy + dz * dz || 1e-8;
+  let t = ((px - ax) * dx + (py - ay) * dy + (pz - az) * dz) / L2;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const qx = ax + t * dx, qy = ay + t * dy, qz = az + t * dz;
+  const ex = px - qx, ey = py - qy, ez = pz - qz;
+  return ex * ex + ey * ey + ez * ez;
+}
+/* 每顶点最多 4 个权重 */
+const W_IDX = new Int16Array(NV * 4), W_VAL = new Float32Array(NV * 4);
+const W_CNT = new Int16Array(NV);
+for (let v = 0; v < NV; v++) {
+  const px = restPos[v * 3], py = restPos[v * 3 + 1], pz = restPos[v * 3 + 2];
+  const raw = [];
+  let nearest = -1, nearestD2 = Infinity;
+  for (let bi = 0; bi < NB; bi++) {
+    const b = boneList[bi];
+    if (b.side === "l" && px > 0.04) continue;
+    if (b.side === "r" && px < -0.04) continue;
+    const d2 = segDistSq(px, py, pz, bi);
+    if (d2 < nearestD2) { nearestD2 = d2; nearest = bi; }
+    /* 距离门控：超过 2.2σ 不计入，防止跨区域远骨（如尾骨影响爪尖） */
+    if (d2 > (2.2 * b.sigma) * (2.2 * b.sigma)) continue;
+    const w = Math.exp(-d2 / (b.sigma * b.sigma));
+    if (w > 0.02) raw.push([bi, w]);
+  }
+  /* 保底：耳尖/尾尖等偏远顶点至少归到最近的骨，杜绝零权重 */
+  if (raw.length === 0) raw.push([nearest, 1]);
+  raw.sort((a, b) => b[1] - a[1]);
+  const k = Math.min(4, raw.length);
+  let sum = 0;
+  for (let j = 0; j < k; j++) sum += raw[j][1];
+  for (let j = 0; j < k; j++) {
+    W_IDX[v * 4 + j] = raw[j][0];
+    W_VAL[v * 4 + j] = raw[j][1] / sum;           /* 归一化：Σw ≡ 1 */
+  }
+  W_CNT[v] = k;
+}
+
+/* =========================================================================
+ * 4. 肘部鼓包场：关节弯曲时，关节周围顶点沿骨轴径向向外鼓起
+ * ========================================================================= */
+const BULGE_JOINTS = ["elbowL", "elbowR", "kneeL", "kneeR", "wristL", "wristR", "ankleL", "ankleR"];
+const bulge = {};
+BULGE_JOINTS.forEach(nm => {
+  const j = byName[nm], p = j.parent;
+  const axis = j.head.subtract(p.head);
+  const data = [];
+  for (let v = 0; v < NV; v++) {
+    const px = restPos[v * 3], py = restPos[v * 3 + 1], pz = restPos[v * 3 + 2];
+    const dx = px - p.head.x, dy = py - p.head.y, dz = pz - p.head.z;
+    /* 顶点到父骨轴的径向方向（绑定空间） */
+    const ax = axis.x, ay = axis.y, az = axis.z;
+    const L2 = ax * ax + ay * ay + az * az;
+    const t = (dx * ax + dy * ay + dz * az) / L2;
+    if (t < 0 || t > 1.35) continue;
+    const qx = p.head.x + t * ax, qy = p.head.y + t * ay, qz = p.head.z + t * az;
+    let rx = px - qx, ry = py - qy, rz = pz - qz;
+    const rl = Math.hypot(rx, ry, rz);
+    const dj = Math.hypot(px - j.head.x, py - j.head.y, pz - j.head.z);
+    if (dj > 0.21 || rl < 1e-4) continue;
+    rx /= rl; ry /= rl; rz /= rl;
+    /* 平滑衰减权重：越贴关节、越在表皮，鼓起越明显 */
+    const fall = Math.max(0, 1 - dj / 0.21);
+    data.push({ v, dx: rx, dy: ry, dz: rz, w: fall * fall });
+  }
+  bulge[nm] = data;
+});
+/* 转为按顶点的扁平表，帧内 O(1) 访问；鼓包幅度再乘该顶点对此骨的权重 */
+const vBulge = new Array(NV);
+for (const nm of BULGE_JOINTS) {
+  const bi = byName[nm].idx;
+  for (const g of bulge[nm]) {
+    let wv = 0;
+    for (let w = 0; w < W_CNT[g.v]; w++)
+      if (W_IDX[g.v * 4 + w] === bi) { wv = W_VAL[g.v * 4 + w]; break; }
+    if (wv < 0.05) continue;
+    (vBulge[g.v] ||= []).push({ bi, dx: g.dx, dy: g.dy, dz: g.dz, w: g.w * wv });
+  }
+}
+const BULGE_K = 0.085;       // 最大鼓出量（米）
+
+/* =========================================================================
+ * 5. Babylon 骨骼链 + 半透明骨架叠层 + 关节球
+ * ========================================================================= */
+const skeleton = new BABYLON.Skeleton("corgiSkel", "skel", scene);
+const bbones = {};
+boneList.forEach(b => {
+  bbones[b.name] = new BABYLON.Bone(b.name, skeleton,
+    b.parent ? bbones[b.parent.name] : null, b.local.clone());
+});
+
+const skelMat = new BABYLON.StandardMaterial("skelMat", scene);
+skelMat.emissiveColor = new BABYLON.Color3(0.35, 0.95, 1);
+skelMat.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.25);
+skelMat.alpha = 0.55;
+skelMat.disableLighting = true;
+
+const overlayGroup = 1;
+const rods = {}, pickers = {}, pickerMeshes = [];
+boneList.forEach(b => {
+  if (b.parent) {
+    const rod = BABYLON.MeshBuilder.CreateCylinder("rod_" + b.name,
+      { height: 1, diameter: 0.022, tessellation: 8 }, scene);
+    rod.material = skelMat;
+    rod.renderingGroupId = overlayGroup;
+    rods[b.name] = rod;
+  }
+  const sp = BABYLON.MeshBuilder.CreateSphere("pick_" + b.name,
+    { diameter: b.name === "root" ? 0.09 : 0.07, segments: 12 }, scene);
+  const pm = new BABYLON.StandardMaterial("pm_" + b.name, scene);
+  pm.emissiveColor = new BABYLON.Color3(0.34, 0.85, 1);
+  pm.disableLighting = true;
+  pm.alpha = 0.92;
+  sp.material = pm;
+  sp.renderingGroupId = overlayGroup;
+  sp.metadata = { bone: b, isPicker: true };
+  pickers[b.name] = sp;
+  if (b.hinge) pickerMeshes.push(sp);
+});
+
+/* =========================================================================
+ * 6. 蒙皮网格（每帧 CPU 更新：权重混合 -> 鼓包 -> 骨胶囊防穿透 -> 贴地）
+ * ========================================================================= */
+const mesh = new BABYLON.Mesh("corgi", scene);
+mesh.renderingGroupId = 0;
+const colorRGBA = new Float32Array(NV * 4);
+for (let i = 0; i < NV; i++) {
+  colorRGBA[i * 4] = baseCol[i * 3];
+  colorRGBA[i * 4 + 1] = baseCol[i * 3 + 1];
+  colorRGBA[i * 4 + 2] = baseCol[i * 3 + 2];
+  colorRGBA[i * 4 + 3] = 1;
+}
+const vData = new BABYLON.VertexData();
+vData.positions = curPos;
+vData.normals = curNrm;
+vData.colors = colorRGBA;
+vData.indices = geo.idx;
+vData.applyToMesh(mesh, true);   /* updatable=true：位置/法线/颜色缓冲每帧重传 */
+const mat = new BABYLON.StandardMaterial("skin", scene);
+mat.vertexColorEnabled = true;
+mat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+mat.backFaceCulling = false;   /* 多部件缝合处双面渲染，避免任何绕序空洞 */
+mesh.material = mat;
+mesh.hasVertexAlpha = false;
+
+/* 骨胶囊运行时端点缓存 */
+const capBones = boneList.filter(b => b.capR);
+const CAP = capBones.map(b => ({
+  b, ax: 0, ay: 0, az: 0, bx: 0, by: 0, bz: 0, r: b.capR + 0.02
+}));
+const SKIN_FLOOR = 0.025;
+
+/* 可复用临时对象，避免帧内分配 */
+const tmpQ = new BABYLON.Quaternion();
+const tmpM = new BABYLON.Matrix();
+const UP = V(0, 1, 0);
+
+function setXray(on) {
+  skelMat.disableDepthWrite = on;
+  pickerMeshes.forEach(m => m.material.disableDepthWrite = on);
+  Object.values(pickers).forEach(m => m.material.disableDepthWrite = on);
+}
+
+/* =========================================================================
+ * 7. 交互状态：约束滑块 / 拖拽 / 待机 / 预置 / 自动演示
+ * ========================================================================= */
+const ui = {
+  limit: document.getElementById("limit"),
+  limitVal: document.getElementById("limitVal"),
+  alpha: document.getElementById("skelAlpha"),
+  alphaVal: document.getElementById("skelAlphaVal"),
+  idle: document.getElementById("idle"),
+  xray: document.getElementById("xray"),
+  weights: document.getElementById("weights"),
+  state: document.getElementById("state"),
+  btnPreset: document.getElementById("btnPreset"),
+  btnDemo: document.getElementById("btnDemo"),
+  btnReset: document.getElementById("btnReset"),
+};
+let limitScale = 0.7;
+ui.limit.oninput = () => {
+  limitScale = parseFloat(ui.limit.value);
+  ui.limitVal.textContent = Math.round(limitScale * 100) + "%";
+};
+ui.alpha.oninput = () => {
+  const a = parseFloat(ui.alpha.value);
+  skelMat.alpha = a;
+  Object.values(pickers).forEach(m => m.material.alpha = Math.min(1, a + 0.35));
+  ui.alphaVal.textContent = Math.round(a * 100) + "%";
+};
+ui.xray.onchange = () => setXray(ui.xray.checked);
+
+const PALETTE = [
+  [1,.25,.25],[.25,1,.35],[.3,.45,1],[1,.8,.2],[1,.3,1],[.2,1,1],[1,.55,.2],[.75,.75,1],
+  [.55,1,.55],[1,.65,.75],[.6,.85,1],[.95,.95,.4],[.7,.35,1],[.35,.9,.7],[1,.45,.45],[.5,.6,1],
+  [.85,.75,.4],[.4,.85,.95],[.9,.55,.95],[.6,.95,.6],[.8,.8,.8]
+];
+function dominantColor(bi) {
+  const b = boneList[bi];
+  let h = 0; for (let k = 0; k < b.name.length; k++) h = (h * 31 + b.name.charCodeAt(k)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+
+let dragBone = null, lastX = 0, lastY = 0, hoverMesh = null;
+scene.onPointerObservable.add(info => {
+  const ev = info.type;
+  if (ev === BABYLON.PointerEventTypes.POINTERDOWN) {
+    const pick = scene.pick(scene.pointerX, scene.pointerY, m => m.metadata && m.metadata.isPicker);
+    if (pick && pick.hit && pick.pickedMesh.metadata.bone.hinge) {
+      dragBone = pick.pickedMesh.metadata.bone;
+      camera.detachControl();
+      lastX = scene.pointerX; lastY = scene.pointerY;
+      demo = null;                      // 手动接管，退出自动演示
+      ui.idle.checked = false;          // 手动操作时暂停待机
+      canvas.style.cursor = "grabbing";
+    }
+  } else if (ev === BABYLON.PointerEventTypes.POINTERMOVE) {
+    if (dragBone) {
+      const dx = scene.pointerX - lastX, dy = scene.pointerY - lastY;
+      lastX = scene.pointerX; lastY = scene.pointerY;
+      dragBone.ax += -dy * 0.0085;
+      dragBone.ay += dx * 0.0085;
+    } else {
+      const pick = scene.pick(scene.pointerX, scene.pointerY, m => m.metadata && m.metadata.isPicker);
+      hoverMesh = pick && pick.hit ? pick.pickedMesh : null;
+      canvas.style.cursor = hoverMesh ? "grab" : "default";
+    }
+  } else if (ev === BABYLON.PointerEventTypes.POINTERUP || ev === BABYLON.PointerEventTypes.POINTERLEAVE) {
+    if (dragBone) { camera.attachControl(canvas, true); dragBone = null; canvas.style.cursor = "default"; }
+  }
+});
+
+function resetPose() {
+  boneList.forEach(b => { b.ax = 0; b.ay = 0; b.force = 0; b.rawForce = 0; });
+  demo = null;
+  ui.btnDemo.classList.remove("active");
+  setState("ok", "已复位到绑定姿势");
+}
+function presetRaiseLeg() {
+  resetPose();
+  byName.shoulderL.ax = 0.9;      /* 肱骨前抬（70% 限位下仍有余量，不触发约束） */
+  byName.elbowL.ax = 0.7;         /* 肘初弯，留给用户/演示继续弯的空间 */
+  byName.wristL.ax = -0.3;
+  setState("ok", "预置完成：现在拖动左前腿的<b>肘部关节球</b>，慢慢向极限弯曲");
+}
+ui.btnReset.onclick = resetPose;
+ui.btnPreset.onclick = presetRaiseLeg;
+
+/* 肘部极限自动演示：鼓包 -> 被约束挡住 -> 恢复 */
+let demo = null, demoHold = 0;
+ui.btnDemo.onclick = () => {
+  presetRaiseLeg();
+  ui.btnDemo.classList.add("active");
+  demo = { t: 0, elbow: byName.elbowL, start: 0.7 };
+  demoHold = 0;
+};
+function stepDemo(dt) {
+  if (demoHold > 0) { demoHold -= dt; return; }
+  if (!demo) return;
+  demo.t += dt;
+  const T = demo.t, hinge = demo.elbow.hinge;
+  const target = hinge.max * (0.35 + 0.65 * limitScale);   // 滑块决定的有效极限
+  let a, phase;
+  if (T < 2.6) {                       // 慢慢弯到极限
+    const k = 0.5 - 0.5 * Math.cos(Math.PI * T / 2.6);
+    a = demo.start + (target - demo.start) * k;
+    phase = a > target - 0.12 ? "皮肤鼓起，到达约束极限…" : "肘部弯曲，关节周围皮肤逐渐鼓起";
+  } else if (T < 3.8) {
+    a = target + 0.35 * Math.sin((T - 2.6) * 6);           // 试图越过极限 -> 被拉回
+    phase = "⚠ 超出极限：骨骼被约束拉回，关节显示受力色";
+  } else if (T < 6.4) {
+    const k = 0.5 - 0.5 * Math.cos(Math.PI * (T - 3.8) / 2.6);
+    a = target + (demo.start - target) * k;
+    phase = "约束释放，皮肤与骨骼平滑恢复";
+  } else {
+    a = demo.start;
+    demo.elbow.ax = a;
+    demo = null;
+    demoHold = 2;
+    ui.btnDemo.classList.remove("active");
+    setState("ok", "演示完成：鼓包 → 约束阻挡（受力色）→ 恢复");
+    return;
+  }
+  demo.elbow.ax = a;
+  setState("", phase);
+}
+
+function setState(kind, html) {
+  ui.state.className = kind === "ok" ? "ok" : "";
+  ui.state.innerHTML = html;
+}
+
+/* =========================================================================
+ * 8. 每帧求解
+ * ========================================================================= */
+function clampAngle(b, axDes, ayDes, t) {
+  const h = b.hinge;
+  if (!h) { b.effAx = axDes; b.effAy = ayDes; b.rawForce = 0; return; }
+  const s = Math.max(0.02, limitScale);
+  /* ax=X 轴铰链角（四肢）；ay=Y 轴铰链角（尾巴摆）。另一轴给小的活动范围 */
+  let lo, hi, yawMax;
+  if (h.axis === "x") { lo = h.min * s; hi = h.max * s; yawMax = (h.yaw ?? .5) * s; }
+  else { lo = -(h.pitch ?? .5) * s; hi = (h.pitch ?? .5) * s; yawMax = h.max * s; }
+  const cx = Math.max(lo, Math.min(hi, axDes));
+  const cy = Math.max(-yawMax, Math.min(yawMax, ayDes));
+  const over = Math.abs(axDes - cx) + Math.abs(ayDes - cy);
+  b.effAx = cx; b.effAy = cy;
+  /* 仅当真实越过有效极限时产生受力；贴边停留不报警（演示中持续越限自然持续红） */
+  b.rawForce = Math.min(1, over / 0.45);
+  b.force += (b.rawForce - b.force) * Math.min(1, dt2 * 10);
+}
+let dt2 = 0.016;
+
+function frame(t) {
+  const dt = Math.min(0.05, engine.getDeltaTime() / 1000);
+  dt2 = dt;
+  stepDemo(dt);
+
+  /* ---- 8.1 待机循环偏移（叠加在用户角度上，再过约束） ---- */
+  const idleOn = ui.idle.checked && !dragBone && !demo;
+  const idle = {};
+  if (idleOn) {
+    idle.rootY = 0.018 * Math.sin(t * 2.1);
+    idle.spine0 = 0.035 * Math.sin(t * 1.5);
+    idle.headY = 0.16 * Math.sin(t * 1.35);
+    idle.tail0 = 0.5 * Math.sin(t * 3.2);
+    idle.shL = 0.07 * Math.sin(t * 2.2);
+    idle.shR = -0.07 * Math.sin(t * 2.2);
+  }
+
+  boneList.forEach(b => {
+    let ax = b.ax, ay = b.ay;
+    if (idleOn) {
+      if (b.name === "spine0") ax += idle.spine0;
+      if (b.name === "head") ay += idle.headY;
+      if (b.name === "tail0") ay += idle.tail0;
+      if (b.name === "tail1") ay += idle.tail0 * 0.6;
+      if (b.name === "tail2") ay += idle.tail0 * 0.35;
+      if (b.name === "tail3") ay += idle.tail0 * 0.18;
+      if (b.name === "shoulderL") ax += idle.shL;
+      if (b.name === "shoulderR") ax += idle.shR;
+      if (b.name === "elbowL") ax += Math.max(0, -idle.shL) * 0.8;
+      if (b.name === "elbowR") ax += Math.max(0, -idle.shR) * 0.8;
+    }
+    clampAngle(b, ax, ay, t);
+  });
+
+  /* ---- 8.2 骨骼局部/绝对矩阵（父子链一起动） ---- */
+  boneList.forEach(b => {
+    BABYLON.Quaternion.RotationYawPitchRollToRef(b.effAy, b.effAx, 0, tmpQ);
+    b.quat.copyFrom(tmpQ);
+    BABYLON.Matrix.ComposeToRef(BABYLON.Vector3.One(), tmpQ, b.localHead, tmpM);
+    b.local.copyFrom(tmpM);
+    if (b.parent) b.local.multiplyToRef(b.parent.abs, b.abs);
+    else {
+      if (idleOn) {
+        BABYLON.Matrix.TranslationToRef(0, idle.rootY, 0, tmpM);
+        tmpM.multiplyToRef(b.local, b.abs);
+      } else b.abs.copyFrom(b.local);
+    }
+    /* 蒙皮矩阵 = 当前绝对 × 绑定逆绝对 */
+    b.abs.multiplyToRef(b.invRest, b.skin);
+  });
+
+  /* ---- 8.3 鼓包量（按弯曲角/极限的平方增长） ---- */
+  const bulgeAmt = {};
+  for (const nm of BULGE_JOINTS) {
+    const j = byName[nm];
+    const h = j.hinge, s = Math.max(0.02, limitScale);
+    const lim = Math.max(0.05, (h.axis === "x" ? h.max : h.pitch) * s);
+    bulgeAmt[nm] = BULGE_K * Math.min(1, Math.abs(j.effAx) / lim) ** 2 * (1 + j.force * 0.4);
+  }
+
+  /* ---- 8.4 CPU 蒙皮 ---- */
+  for (let v = 0; v < NV; v++) {
+    let x = restPos[v * 3], y = restPos[v * 3 + 1], z = restPos[v * 3 + 2];
+    /* 鼓包偏移（绑定空间，已按骨权重加权） */
+    const bl = vBulge[v];
+    if (bl) for (const g of bl) {
+      const amt = bulgeAmt[boneList[g.bi].name] * g.w;
+      x += g.dx * amt; y += g.dy * amt; z += g.dz * amt;
+    }
+    let ox = 0, oy = 0, oz = 0, nx = 0, ny = 0, nz = 0;
+    const rnx = restNrm[v * 3], rny = restNrm[v * 3 + 1], rnz = restNrm[v * 3 + 2];
+    for (let w = 0; w < W_CNT[v]; w++) {
+      const m = boneList[W_IDX[v * 4 + w]].skin.m, wt = W_VAL[v * 4 + w];
+      ox += wt * (m[0] * x + m[4] * y + m[8] * z + m[12]);
+      oy += wt * (m[1] * x + m[5] * y + m[9] * z + m[13]);
+      oz += wt * (m[2] * x + m[6] * y + m[10] * z + m[14]);
+      nx += wt * (m[0] * rnx + m[4] * rny + m[8] * rnz);
+      ny += wt * (m[1] * rnx + m[5] * rny + m[9] * rnz);
+      nz += wt * (m[2] * rnx + m[6] * rny + m[10] * rnz);
+    }
+    curPos[v * 3] = ox; curPos[v * 3 + 1] = oy; curPos[v * 3 + 2] = oz;
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    curNrm[v * 3] = nx / nl; curNrm[v * 3 + 1] = ny / nl; curNrm[v * 3 + 2] = nz / nl;
+  }
+
+  /* ---- 8.5 骨胶囊防穿透：皮肤顶点不得塌进骨头，Gauss-Seidel 迭代松弛 ---- */
+  for (const c of CAP) {
+    const b = c.b;
+    c.ax = b.abs.m[12]; c.ay = b.abs.m[13]; c.az = b.abs.m[14];
+    const child = boneList[b.idx + 1] && boneList[b.idx + 1].parent === b ? boneList[b.idx + 1] : null;
+    let ex, ey, ez;
+    if (child) { ex = child.abs.m[12]; ey = child.abs.m[13]; ez = child.abs.m[14]; }
+    else {
+      /* 末段骨（无子女）：胶囊终点取自身 end 的世界坐标 */
+      const le = BABYLON.Vector3.TransformCoordinates(b.end, b.abs);
+      ex = le.x; ey = le.y; ez = le.z;
+    }
+    c.bx = ex; c.by = ey; c.bz = ez;
+  }
+  /* 多遍 Gauss-Seidel 松弛，迭代到无冲突或达上限（相邻胶囊夹角再大也能收敛） */
+  for (let pass = 0; pass < 8; pass++) {
+    let any = false;
+    for (const c of CAP) {
+      const dx = c.bx - c.ax, dy = c.by - c.ay, dz = c.bz - c.az;
+      const L2 = dx * dx + dy * dy + dz * dz || 1e-8;
+      for (let v = 0; v < NV; v++) {
+        let px = curPos[v * 3], py = curPos[v * 3 + 1], pz = curPos[v * 3 + 2];
+        let tt = ((px - c.ax) * dx + (py - c.ay) * dy + (pz - c.az) * dz) / L2;
+        tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
+        const qx = c.ax + tt * dx, qy = c.ay + tt * dy, qz = c.az + tt * dz;
+        let ex2 = px - qx, ey2 = py - qy, ez2 = pz - qz;
+        const dl = Math.hypot(ex2, ey2, ez2);
+        if (dl < c.r && dl > 1e-6) {
+          const push = (c.r - dl) / dl;
+          px += ex2 * push; py += ey2 * push; pz += ez2 * push;
+          curPos[v * 3] = px; curPos[v * 3 + 1] = py; curPos[v * 3 + 2] = pz;
+          any = true;
+        } else if (dl <= 1e-6) {
+          curPos[v * 3] = qx; curPos[v * 3 + 1] = qy + c.r; curPos[v * 3 + 2] = qz;
+          any = true;
+        }
+      }
+    }
+    if (!any) break;
+  }
+  /* 地面约束（所有松弛完成后统一夹一次） */
+  for (let v = 0; v < NV; v++)
+    if (curPos[v * 3 + 1] < SKIN_FLOOR) curPos[v * 3 + 1] = SKIN_FLOOR;
+  mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, curPos, true);
+  mesh.updateVerticesData(BABYLON.VertexBuffer.NormalKind, curNrm, true);
+
+  /* ---- 8.6 顶点色：受力红 / 权重可视化 ---- */
+  const showW = ui.weights.checked;
+  for (let v = 0; v < NV; v++) {
+    let r, g, bl;
+    if (showW) {
+      let best = 0, bw = -1;
+      for (let w = 0; w < W_CNT[v]; w++)
+        if (W_VAL[v * 4 + w] > best) { best = W_VAL[v * 4 + w]; bw = W_IDX[v * 4 + w]; }
+      [r, g, bl] = dominantColor(bw);
+    } else {
+      let f = 0;
+      for (let w = 0; w < W_CNT[v]; w++) {
+        const b = boneList[W_IDX[v * 4 + w]];
+        f += b.force * W_VAL[v * 4 + w];
+      }
+      r = baseCol[v * 3] * (1 - f) + 1 * f * 0.92;
+      g = baseCol[v * 3 + 1] * (1 - f) + 0.22 * f;
+      bl = baseCol[v * 3 + 2] * (1 - f) + 0.18 * f;
+    }
+    curCol[v * 3] = r; curCol[v * 3 + 1] = g; curCol[v * 3 + 2] = bl;
+    colorRGBA[v * 4] = r; colorRGBA[v * 4 + 1] = g; colorRGBA[v * 4 + 2] = bl;
+  }
+  mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colorRGBA, true);
+
+  /* ---- 8.7 Babylon 骨骼与叠层同步 ---- */
+  boneList.forEach(b => bbones[b.name].updateMatrix(b.local));
+  boneList.forEach(b => {
+    const hp = b.abs.getTranslation();
+    const sp = pickers[b.name];
+    sp.position.copyFrom(hp);
+    const targetScale = hoverMesh === sp || dragBone === b ? 1.45 : 1;
+    sp.scaling.x += (targetScale - sp.scaling.x) * 0.25;
+    sp.scaling.y = sp.scaling.z = sp.scaling.x;
+    /* 受力色：青 -> 红 */
+    const pm = sp.material;
+    pm.emissiveColor.r += (0.34 + b.force * 0.66 - pm.emissiveColor.r) * 0.25;
+    pm.emissiveColor.g += ((1 - b.force) * 0.85 - pm.emissiveColor.g) * 0.25;
+    pm.emissiveColor.b += ((1 - b.force) - pm.emissiveColor.b) * 0.25;
+    if (b.parent) {
+      const rod = rods[b.name];
+      const ph = b.parent.abs.getTranslation();
+      const dirV = hp.subtract(ph);
+      const len = dirV.length();
+      rod.position = ph.add(dirV.scale(0.5));
+      rod.scaling.set(1, len, 1);
+      BABYLON.Quaternion.FromUnitVectorsToRef(UP, dirV.normalize(), tmpQ);
+      rod.rotationQuaternion = tmpQ.clone();
+    }
+  });
+
+  /* ---- 8.8 状态栏 ---- */
+  if (!demo && demoHold <= 0) {
+    const top = boneList.reduce((a, b) => b.force > a.force ? b : a, { force: 0, name: "" });
+    if (top.force > 0.05)
+      setState("", `⚠ <b>${top.name}</b> 超出约束极限，骨骼已被拉回　受力 ${(top.force * 100) | 0}%`);
+    else if (dragBone)
+      setState("ok", `拖动 <b>${dragBone.name}</b>　铰链角 ${(dragBone.effAx * 180 / Math.PI).toFixed(0)}° / 偏航 ${(dragBone.effAy * 180 / Math.PI).toFixed(0)}°`);
+    else if (idleOn) setState("ok", "待机循环中：呼吸起伏 · 尾巴摆动 · 前腿交替微动");
+  }
+}
+
+scene.onBeforeRenderObservable.add(() => frame(performance.now() / 1000));
+
+window.addEventListener("resize", () => engine.resize());
+engine.runRenderLoop(() => scene.render());
+
+/* 调试/自动化测试接口 */
+window.DBG = {
+  get NV() { return NV; }, get NB() { return NB; }, get CAP() { return CAP; },
+  get W_CNT() { return W_CNT; }, get W_VAL() { return W_VAL; }, get W_IDX() { return W_IDX; },
+  get curPos() { return curPos; }, get restPos() { return restPos; }, get SKIN_FLOOR() { return SKIN_FLOOR; },
+  get boneList() { return boneList; }, get byName() { return byName; },
+  get BABYLON() { return BABYLON; },
+  collision() {
+    let violations = 0, minGap = 1e9, worst = null;
+    for (const c of CAP) for (let v = 0; v < NV; v++) {
+      const px = curPos[v*3], py = curPos[v*3+1], pz = curPos[v*3+2];
+      const dx = c.bx-c.ax, dy = c.by-c.ay, dz = c.bz-c.az;
+      const L2 = dx*dx+dy*dy+dz*dz;
+      let tt = ((px-c.ax)*dx+(py-c.ay)*dy+(pz-c.az)*dz)/L2;
+      tt = Math.max(0, Math.min(1, tt));
+      const qx = c.ax+tt*dx, qy = c.ay+tt*dy, qz = c.az+tt*dz;
+      const d = Math.hypot(px-qx, py-qy, pz-qz);
+      if (d - c.r < minGap) { minGap = d - c.r; worst = c.b.name + "#v" + v; }
+      if (d < c.r - 0.002) violations++;
+    }
+    let belowFloor = 0, nan = 0;
+    for (let v = 0; v < NV; v++) {
+      if (curPos[v*3+1] < SKIN_FLOOR - 0.002) belowFloor++;
+      for (let k = 0; k < 3; k++) if (!isFinite(curPos[v*3+k])) nan++;
+    }
+    return { violations, minGap: +minGap.toFixed(4), worst, belowFloor, nan };
+  },
+};
+</script>
+</body>
+</html>
