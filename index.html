@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>风载果枝仿真 · 临界风力屈曲</title>
+<style>
+  :root {
+    --bg: #0e1712;
+    --panel: rgba(18, 30, 24, 0.82);
+    --panel-border: rgba(120, 200, 150, 0.18);
+    --fg: #e6f0e8;
+    --muted: #93a89a;
+    --accent: #6fe39a;
+    --accent-warm: #f2b56b;
+    --danger: #ff7a6b;
+    --crit: #ffd166;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #eef2ec;
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-border: rgba(40, 90, 60, 0.16);
+      --fg: #1c2a21;
+      --muted: #5c6f61;
+      --accent: #1f9d57;
+      --accent-warm: #c47a25;
+      --danger: #d64535;
+      --crit: #b8860b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 14px;
+  }
+  #renderCanvas { width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
+
+  .panel {
+    position: fixed;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 16px 18px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  }
+  #control {
+    top: 16px; left: 16px;
+    width: 320px; max-width: calc(100vw - 32px);
+  }
+  #readout {
+    top: 16px; right: 16px;
+    width: 232px; max-width: calc(100vw - 32px);
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; font-weight: 650; letter-spacing: 0.3px; }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 14px; line-height: 1.5; }
+
+  .slider-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .slider-row label { font-weight: 600; }
+  .wind-val { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 700; font-size: 16px; }
+  input[type=range] {
+    width: 100%; height: 28px; margin: 4px 0 2px;
+    -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-warm) 55%, var(--danger) 100%);
+  }
+  input[type=range]::-moz-range-track {
+    height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-warm) 55%, var(--danger) 100%);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--fg); border: 3px solid var(--accent);
+    margin-top: -7px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--fg); border: 3px solid var(--accent);
+  }
+  .scale-marks { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .crit-mark {
+    position: relative; height: 0;
+    border-top: 2px dashed var(--crit);
+    margin: 2px 0 0;
+  }
+  .crit-label { color: var(--crit); font-size: 11px; font-weight: 700; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+  .crit-label::before { content: ""; width: 14px; border-top: 2px dashed var(--crit); }
+
+  .toggle-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); cursor: pointer; user-select: none; }
+  .toggle-row input { accent-color: var(--accent); width: 16px; height: 16px; }
+  button {
+    margin-top: 12px; width: 100%;
+    background: var(--accent); color: #08130c; border: none;
+    padding: 9px; border-radius: 9px; font-weight: 700; font-size: 13px;
+    cursor: pointer; transition: filter 0.15s;
+  }
+  button:hover { filter: brightness(1.08); }
+
+  .metric { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--panel-border); }
+  .metric:last-child { border-bottom: none; }
+  .metric .k { color: var(--muted); }
+  .metric .v { font-variant-numeric: tabular-nums; font-weight: 650; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;
+  }
+  .badge.safe { background: rgba(111, 227, 154, 0.18); color: var(--accent); }
+  .badge.near { background: rgba(242, 181, 107, 0.2); color: var(--accent-warm); }
+  .badge.crit { background: rgba(255, 122, 107, 0.22); color: var(--danger); }
+  .fruit-line { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .fruit-line .v { color: var(--fg); }
+  .bar { height: 5px; border-radius: 3px; background: rgba(128,128,128,0.25); margin-top: 4px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.1s linear; }
+
+  #hint {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    color: var(--muted); font-size: 12px; background: var(--panel);
+    padding: 7px 14px; border-radius: 20px; border: 1px solid var(--panel-border);
+    white-space: nowrap;
+  }
+  @media (max-width: 720px) {
+    #readout { top: auto; bottom: 48px; right: 12px; width: 188px; padding: 12px; }
+    #control { top: 10px; left: 10px; width: calc(100vw - 20px); padding: 13px 15px; }
+    #hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="renderCanvas"></canvas>
+
+<div id="control" class="panel">
+  <h1>风载果枝 · 临界屈曲仿真</h1>
+  <div class="sub">拖动风力滑块，观察分段刚度枝条下垂与果实绳摆的联动。逼近临界风时整枝突然下垂，越过后果绳被拉直。</div>
+
+  <div class="slider-row">
+    <label for="wind">风力（风速 m/s）</label>
+    <span class="wind-val" id="windVal">0.0</span>
+  </div>
+  <input type="range" id="wind" min="0" max="28" step="0.1" value="0">
+  <div class="scale-marks"><span>0</span><span>7</span><span>14</span><span>21</span><span>28</span></div>
+  <div class="crit-label">临界风力 Wcrit = 14.5 m/s（刚度崩塌点）</div>
+
+  <label class="toggle-row"><input type="checkbox" id="gust" checked> 启用阵风扰动（湍流摆动）</label>
+  <button id="reset">复位到无风静止状态</button>
+</div>
+
+<div id="readout" class="panel">
+  <div class="metric"><span class="k">系统状态</span><span class="v"><span id="stateBadge" class="badge safe">安全</span></span></div>
+  <div class="metric"><span class="k">枝端下垂量</span><span class="v" id="droop">0.00 m</span></div>
+  <div class="metric"><span class="k">下垂程度</span><span class="v" id="droopPct">0%</span></div>
+  <div class="metric"><span class="k">枝端倾角</span><span class="v" id="tipAng">0.0°</span></div>
+  <div class="metric"><span class="k">当前/临界</span><span class="v" id="loadRatio">0.00</span></div>
+
+  <div class="fruit-line">枝端果实摆角 <span class="v" id="beta0">0.0°</span>
+    <div class="bar"><i id="bar0" style="width:0%"></i></div>
+  </div>
+  <div class="fruit-line">侧枝果实①摆角 <span class="v" id="beta1">0.0°</span>
+    <div class="bar"><i id="bar1" style="width:0%"></i></div>
+  </div>
+  <div class="fruit-line">侧枝果实②摆角 <span class="v" id="beta2">0.0°</span>
+    <div class="bar"><i id="bar2" style="width:0%"></i></div>
+  </div>
+  <div class="fruit-line" id="ropeState">果绳状态：松弛</div>
+</div>
+
+<div id="hint">鼠标拖拽旋转视角 · 滚轮缩放 · 右键平移</div>
+
+<script src="https://cdn.jsdelivr.net/npm/babylonjs@6.49.0/babylon.js"></script>
+<script>
+// ===== inlined planar physics engine (articulated branch, see engine.js) =====
+const BranchPhysics = (() => {
+  'use strict';
+  const PI = Math.PI;
+  const wrapAngle = (a) => { while (a > PI) a -= 2 * PI; while (a < -PI) a += 2 * PI; return a; };
+
+  function defaultConfig() {
+    return {
+      g: 9.81, rho: 1.225, N: 7, L: 0.5, base: [0, 1.6], nodeMass: 0.3,
+      K: [2560, 2280, 2000, 1720, 1440, 1200, 960], angDamp: 14,
+      twigs: [
+        { host: 2, L: 0.38, relDeg: -52, K: 720, damp: 6 },
+        { host: 4, L: 0.34, relDeg: -55, K: 640, damp: 6 },
+      ],
+      fruits: [{ anchor: 'tip' }, { anchor: 'twig0' }, { anchor: 'twig1' }],
+      fruitMass: 0.85, ropeLen: 0.46, betaMaxDeg: 55, fruitCdA: 0.05, pendDamp: 0.7,
+      cdBranch: 1.15, dia0: 0.09, dia1: 0.04, h: 1 / 240, gustFrac: 0.16,
+      groundY: 0.04, Wcrit: 14.5, soften: 0.08, bucklingSharpness: 14,
+    };
+  }
+
+  function createSim(cfg) {
+    cfg = Object.assign(defaultConfig(), cfg || {});
+    const N = cfg.N;
+    const restTheta = [];
+    for (let j = 0; j < N; j++) restTheta.push(((9 - j * 1.6) * PI) / 180);
+    const theta = restTheta.slice();
+    const omega = new Array(N).fill(0);
+    const twigs = cfg.twigs.map((tw) => ({
+      host: tw.host, L: tw.L,
+      restTheta: restTheta[tw.host] + (tw.relDeg * PI) / 180,
+      theta: restTheta[tw.host] + (tw.relDeg * PI) / 180,
+      omega: 0, K: tw.K, damp: tw.damp, mass: 0.12,
+    }));
+    const twigNode = twigs.map((tw, i) => N + 1 + i);
+    const anchorOf = (f) => f.anchor === 'tip' ? N : f.anchor === 'twig0' ? twigNode[0] : twigNode[1];
+    const fruits = cfg.fruits.map((f) => ({ anchor: anchorOf(f), beta: 0, betaDot: 0, taut: false, tension: 0 }));
+    const area = new Array(N + 1 + twigs.length).fill(0);
+    for (let j = 1; j <= N; j++) { const t = j / N; area[j] = cfg.L * (cfg.dia1 + (cfg.dia0 - cfg.dia1) * (1 - t)); }
+    twigs.forEach((tw, i) => { area[twigNode[i]] = tw.L * 0.03; });
+    const masses = new Array(N + 1 + twigs.length).fill(0);
+    for (let j = 1; j <= N; j++) masses[j] = cfg.nodeMass;
+    twigs.forEach((tw, i) => { masses[twigNode[i]] = tw.mass; });
+    const sim = { cfg, N, theta, omega, restTheta, twigs, twigNode, fruits, area, masses,
+      nodes: [], time: 0, wind: 0, acc: 0, prevAnchorVel: {}, anchorVel: {}, restTip: null };
+    forwardKinematics(sim);
+    return sim;
+  }
+
+  function forwardKinematics(s) {
+    const cfg = s.cfg;
+    const nodes = [cfg.base.slice()];
+    for (let j = 0; j < s.N; j++) {
+      const p = nodes[j];
+      nodes.push([p[0] + cfg.L * Math.cos(s.theta[j]), p[1] + cfg.L * Math.sin(s.theta[j])]);
+    }
+    s.twigs.forEach((tw) => {
+      const hp = nodes[tw.host];
+      nodes.push([hp[0] + tw.L * Math.cos(tw.theta), hp[1] + tw.L * Math.sin(tw.theta)]);
+    });
+    s.nodes = nodes;
+    if (!s.restTip) s.restTip = nodes[s.N].slice();
+    return nodes;
+  }
+
+  function subStep(s, windSpeed, gustOn) {
+    const cfg = s.cfg, h = cfg.h, t = s.time, N = s.N;
+    let wv = windSpeed;
+    if (gustOn && windSpeed > 1e-6) {
+      const g = cfg.gustFrac * windSpeed;
+      wv += g * (0.7 * Math.sin(1.7 * t) + 0.3 * Math.sin(4.3 * t + 1.3));
+    }
+    const prevAnchorVel = {};
+    for (const k in s.anchorVel) prevAnchorVel[k] = s.anchorVel[k].slice();
+    if (!s._prevNodes) s._prevNodes = s.nodes.map((p) => p.slice());
+    const nodes = forwardKinematics(s);
+
+    const load = wv / cfg.Wcrit;
+    const logistic = 1 / (1 + Math.exp(-cfg.bucklingSharpness * (load - 1)));
+    const degrade = (1 - (1 - cfg.soften) * Math.min(load, 1) * 0.3) *
+                    (1 - (1 - cfg.soften) * logistic);
+
+    const I = cfg.nodeMass * cfg.L * cfg.L;
+    const fruitAt = {};
+    s.fruits.forEach((fr) => { fruitAt[fr.anchor] = (fruitAt[fr.anchor] || 0) + cfg.fruitMass; });
+    for (let j = 0; j < N; j++) {
+      let tau = 0;
+      for (let q = j + 1; q <= N; q++) {
+        const rx = nodes[q][0] - nodes[j][0], ry = nodes[q][1] - nodes[j][1];
+        const m = cfg.nodeMass + (fruitAt[q] || 0);
+        tau += rx * (-m * cfg.g);
+        tau -= ry * (0.5 * cfg.rho * cfg.cdBranch * s.area[q] * wv * wv);
+      }
+      s.twigs.forEach((tw, ti) => {
+        if (tw.host >= j) {
+          const id = s.twigNode[ti];
+          const rx = nodes[id][0] - nodes[j][0], ry = nodes[id][1] - nodes[j][1];
+          const m = tw.mass + (fruitAt[id] || 0);
+          tau += rx * (-m * cfg.g);
+          tau -= ry * (0.5 * cfg.rho * cfg.cdBranch * s.area[id] * wv * wv);
+        }
+      });
+      const rel = j === 0 ? wrapAngle(s.theta[0] - s.restTheta[0])
+        : wrapAngle(wrapAngle(s.theta[j] - s.theta[j - 1]) - wrapAngle(s.restTheta[j] - s.restTheta[j - 1]));
+      tau += -cfg.K[j] * degrade * rel - cfg.angDamp * s.omega[j];
+      const dc = N - j;
+      const Ieff = I * (1 + 1.2 * (dc / N)) + (fruitAt[N] || 0) * cfg.L * cfg.L * (j === N - 1 ? 1 : 0.4);
+      s.omega[j] += (tau / Ieff) * h;
+    }
+    for (let j = 0; j < N; j++) s.theta[j] = wrapAngle(s.theta[j] + s.omega[j] * h);
+
+    const fruitAtTwig = {};
+    s.fruits.forEach((fr) => { fruitAtTwig[fr.anchor] = (fruitAtTwig[fr.anchor] || 0) + cfg.fruitMass; });
+    s.twigs.forEach((tw, ti) => {
+      const id = s.twigNode[ti], hp = nodes[tw.host];
+      const rx = nodes[id][0] - hp[0], ry = nodes[id][1] - hp[1];
+      const fruitM = fruitAtTwig[id] || 0, m = tw.mass + fruitM;
+      let tau = rx * (-m * cfg.g) - ry * (0.5 * cfg.rho * cfg.cdBranch * s.area[id] * wv * wv);
+      const rel = wrapAngle(wrapAngle(tw.theta - s.theta[tw.host]) - wrapAngle(tw.restTheta - s.restTheta[tw.host]));
+      tau += -tw.K * degrade * rel - tw.damp * tw.omega;
+      const It = (tw.mass + fruitM) * tw.L * tw.L;
+      tw.omega += (tau / It) * h;
+      tw.theta = wrapAngle(tw.theta + tw.omega * h);
+    });
+
+    const nodes2 = forwardKinematics(s);
+    for (let j = 0; j < N; j++) {
+      if (nodes2[j + 1][1] < cfg.groundY) {
+        const overshoot = cfg.groundY - nodes2[j + 1][1];
+        s.theta[j] = wrapAngle(s.theta[j] + overshoot / cfg.L);
+        if (s.omega[j] < 0) s.omega[j] *= -0.2;
+      }
+    }
+    s.twigs.forEach((tw, ti) => {
+      const id = s.twigNode[ti];
+      if (nodes2[id][1] < cfg.groundY) {
+        const overshoot = cfg.groundY - nodes2[id][1];
+        tw.theta = wrapAngle(tw.theta + overshoot / tw.L);
+        if (tw.omega < 0) tw.omega *= -0.2;
+      }
+    });
+    const nodes3 = forwardKinematics(s);
+
+    const newAnchorVel = {};
+    for (let i = 0; i < nodes3.length; i++) {
+      newAnchorVel[i] = [(nodes3[i][0] - s._prevNodes[i][0]) / h, (nodes3[i][1] - s._prevNodes[i][1]) / h];
+    }
+    s.fruits.forEach((fr) => {
+      const ai = fr.anchor;
+      const cur = newAnchorVel[ai] || [0, 0], prv = prevAnchorVel[ai] || [0, 0];
+      const aAx = (cur[0] - prv[0]) / h, aAy = (cur[1] - prv[1]) / h;
+      const t0 = Math.cos(fr.beta), t1 = Math.sin(fr.beta);
+      const vFruitX = cur[0] + cfg.ropeLen * fr.betaDot * t0;
+      const D = 0.5 * cfg.rho * cfg.fruitCdA * (wv - vFruitX) * Math.abs(wv - vFruitX);
+      const betaDD = ((D / cfg.fruitMass - aAx) * t0 - (cfg.g + aAy) * t1) / cfg.ropeLen - cfg.pendDamp * fr.betaDot;
+      fr.betaDot += betaDD * h;
+      fr.beta += fr.betaDot * h;
+      const bMax = (cfg.betaMaxDeg * PI) / 180;
+      if (fr.beta > bMax) { fr.beta = bMax; fr.betaDot = Math.min(fr.betaDot, 0); }
+      if (fr.beta < -bMax) { fr.beta = -bMax; fr.betaDot = Math.max(fr.betaDot, 0); }
+      fr.taut = Math.abs(fr.beta) >= bMax - 1e-6;
+      const eR0 = Math.sin(fr.beta), eR1 = -Math.cos(fr.beta);
+      const aRad = aAx * eR0 + aAy * eR1 - cfg.ropeLen * fr.betaDot * fr.betaDot;
+      let T = D * eR0 - cfg.fruitMass * cfg.g * eR1 - cfg.fruitMass * aRad;
+      if (T < 0) T = 0;
+      if (fr.taut) T = Math.max(T, 0.15 * cfg.fruitMass * cfg.g);
+      fr.tension = T;
+    });
+    s._prevNodes = nodes3.map((p) => p.slice());
+    s.anchorVel = newAnchorVel;
+    s.prevAnchorVel = prevAnchorVel;
+    s.time += h;
+  }
+
+  function step(s, frameDt, windSpeed, gustOn) {
+    s.acc += Math.min(frameDt, 0.05);
+    const h = s.cfg.h;
+    let guard = 0;
+    while (s.acc >= h && guard < 24) { subStep(s, windSpeed, gustOn); s.acc -= h; guard++; }
+    s.wind = windSpeed;
+  }
+  function fruitPos(s, fr) {
+    const a = s.nodes[fr.anchor];
+    return [a[0] + s.cfg.ropeLen * Math.sin(fr.beta), a[1] - s.cfg.ropeLen * Math.cos(fr.beta)];
+  }
+  return { createSim, step, subStep, fruitPos, defaultConfig };
+})();
+</script>
+
+<script>
+// ===== Babylon.js 3D scene =====
+const { Engine, Scene, ArcRotateCamera, Vector3, HemisphericLight, DirectionalLight,
+        MeshBuilder, StandardMaterial, Color3, Color4, TransformNode } = BABYLON;
+
+const canvas = document.getElementById('renderCanvas');
+const engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: true });
+const scene = new Scene(engine);
+scene.clearColor = new Color4(0.055, 0.09, 0.07, 1);
+
+const camera = new ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.6, 7.5, new Vector3(1.6, 1.1, 0), scene);
+camera.attachControl(canvas, true);
+camera.lowerRadiusLimit = 3; camera.upperRadiusLimit = 16;
+camera.wheelDeltaPercentage = 0.01;
+camera.minZ = 0.05;
+
+const hemi = new HemisphericLight('hemi', new Vector3(0.2, 1, 0.4), scene);
+hemi.intensity = 0.85;
+const dir = new DirectionalLight('dir', new Vector3(0.6, -0.8, -0.5), scene);
+dir.intensity = 0.7;
+
+// physics lives in the x-y plane at z=0; map (x,y) -> Babylon (x, y, z=0)
+const P = (xy, z = 0) => new Vector3(xy[0], xy[1], z);
+
+const sim = BranchPhysics.createSim();
+const cfg = sim.cfg;
+
+// ---------- materials ----------
+const barkMat = new StandardMaterial('bark', scene);
+barkMat.diffuseColor = new Color3(0.42, 0.27, 0.15);
+barkMat.specularColor = new Color3(0.12, 0.08, 0.05);
+const twigMat = new StandardMaterial('twig', scene);
+twigMat.diffuseColor = new Color3(0.5, 0.34, 0.2);
+const leafMat = new StandardMaterial('leaf', scene);
+leafMat.diffuseColor = new Color3(0.22, 0.55, 0.28);
+leafMat.emissiveColor = new Color3(0.04, 0.12, 0.05);
+const fruitMat = new StandardMaterial('fruit', scene);
+fruitMat.diffuseColor = new Color3(0.9, 0.28, 0.2);
+fruitMat.specularColor = new Color3(0.4, 0.15, 0.1);
+const ropeMat = new StandardMaterial('rope', scene);
+ropeMat.diffuseColor = new Color3(0.72, 0.62, 0.42);
+ropeMat.emissiveColor = new Color3(0.12, 0.1, 0.05);
+const tautRopeMat = new StandardMaterial('ropeTaut', scene);
+tautRopeMat.diffuseColor = new Color3(1, 0.75, 0.3);
+tautRopeMat.emissiveColor = new Color3(0.35, 0.22, 0.05);
+
+// ---------- ground ----------
+const ground = MeshBuilder.CreateGround('ground', { width: 12, height: 7, subdivisions: 2 }, scene);
+ground.position = new Vector3(1.6, 0, 0);
+const groundMat = new StandardMaterial('gm', scene);
+groundMat.diffuseColor = new Color3(0.13, 0.2, 0.15);
+groundMat.specularColor = new Color3(0.05, 0.08, 0.06);
+ground.material = groundMat;
+
+// fixed anchor post (the tree trunk stub holding the branch)
+const post = MeshBuilder.CreateCylinder('post', { height: cfg.base[1], diameterTop: 0.22, diameterBottom: 0.32 }, scene);
+post.position = new Vector3(cfg.base[0], cfg.base[1] / 2, 0);
+post.material = barkMat;
+
+// ---------- branch segment cylinders (reused, repositioned each frame) ----------
+function makeSegment(len, dia, mat) {
+  const m = MeshBuilder.CreateCylinder('seg', { height: len, diameterTop: dia * 0.82, diameterBottom: dia, tessellation: 12 }, scene);
+  m.material = mat;
+  return m;
+}
+// cylinders are built along +y; we rotate them to lie along each segment's direction
+const mainSegs = [];
+for (let j = 0; j < cfg.N; j++) {
+  const t = j / cfg.N;
+  const dia = cfg.dia1 + (cfg.dia0 - cfg.dia1) * (1 - t);
+  mainSegs.push(makeSegment(cfg.L, dia, barkMat));
+}
+const twigSegs = sim.twigs.map((tw) => makeSegment(tw.L, 0.03, twigMat));
+
+// small joint spheres
+const jointMeshes = [];
+for (let i = 0; i <= cfg.N; i++) {
+  const s = MeshBuilder.CreateSphere('j', { diameter: i === 0 ? 0.14 : 0.07 }, scene);
+  s.material = barkMat; jointMeshes.push(s);
+}
+
+// ---------- ropes + fruits ----------
+const ropeMeshes = sim.fruits.map(() => {
+  const r = MeshBuilder.CreateCylinder('rope', { height: 1, diameter: 0.014, tessellation: 6 }, scene);
+  r.material = ropeMat; return r;
+});
+const fruitMeshes = sim.fruits.map((_, i) => {
+  const f = MeshBuilder.CreateSphere('fruit', { diameter: 0.26, segments: 16 }, scene);
+  f.material = fruitMat;
+  // tiny leaf crown
+  const crown = MeshBuilder.CreateSphere('crown', { diameter: 0.12 }, scene);
+  crown.material = leafMat;
+  crown.parent = f; crown.position.y = 0.15;
+  return f;
+});
+
+// orient a unit-height cylinder (built along +y) between two points
+function placeCylinder(mesh, a, b) {
+  const dir = b.subtract(a);
+  const len = dir.length();
+  mesh.position = a.add(b).scale(0.5);
+  mesh.scaling.y = len;
+  // +y axis -> dir
+  mesh.rotation.z = Math.atan2(-dir.x, dir.y);
+  mesh.rotation.x = 0;
+  // handle z component (everything is planar, but keep robust)
+  mesh.rotation.y = Math.atan2(dir.z, Math.hypot(dir.x, dir.y));
+}
+
+// ---------- wind streamlines (particles drifting along +x) ----------
+const windGroup = new TransformNode('wind', scene);
+const streaks = [];
+const streakMat = new StandardMaterial('streak', scene);
+streakMat.emissiveColor = new Color3(0.55, 0.85, 1);
+streakMat.diffuseColor = new Color3(0.3, 0.5, 0.7);
+streakMat.alpha = 0.55;
+for (let i = 0; i < 26; i++) {
+  const ln = MeshBuilder.CreateBox('streak', { height: 0.02, width: 0.4, depth: 0.02 }, scene);
+  ln.material = streakMat;
+  ln.parent = windGroup;
+  streaks.push({
+    mesh: ln,
+    x: -1 + Math.random() * 6, y: 0.3 + Math.random() * 2.4, z: -1.2 + Math.random() * 2.4,
+    speed: 0.6 + Math.random() * 0.8,
+  });
+}
+
+// ---------- critical-wind marker ring on the branch tip region ----------
+// (UI marker is in the panel; a faint vertical reference plane shows Wcrit droop level)
+
+// ===== per-frame render sync =====
+function syncMeshes() {
+  const nodes = sim.nodes;
+  // main segments
+  for (let j = 0; j < cfg.N; j++) {
+    placeCylinder(mainSegs[j], P(nodes[j]), P(nodes[j + 1]));
+  }
+  // twig segments
+  sim.twigs.forEach((tw, ti) => {
+    placeCylinder(twigSegs[ti], P(nodes[tw.host]), P(nodes[sim.twigNode[ti]]));
+  });
+  // joints
+  for (let i = 0; i <= cfg.N; i++) jointMeshes[i].position = P(nodes[i]);
+
+  // fruits + ropes
+  sim.fruits.forEach((fr, i) => {
+    const a = P(nodes[fr.anchor]);
+    const fp = BranchPhysics.fruitPos(sim, fr);
+    const b = P(fp);
+    placeCylinder(ropeMeshes[i], a, b);
+    ropeMeshes[i].material = fr.taut ? tautRopeMat : ropeMat;
+    fruitMeshes[i].position = b;
+  });
+}
+
+// ===== UI =====
+const windSlider = document.getElementById('wind');
+const windVal = document.getElementById('windVal');
+const gustToggle = document.getElementById('gust');
+const resetBtn = document.getElementById('reset');
+let targetWind = 0;
+
+windSlider.addEventListener('input', () => { targetWind = parseFloat(windSlider.value); windVal.textContent = targetWind.toFixed(1); });
+resetBtn.addEventListener('click', () => {
+  targetWind = 0; windSlider.value = 0; windVal.textContent = '0.0';
+  const fresh = BranchPhysics.createSim();
+  Object.keys(sim).forEach((k) => { delete sim[k]; });
+  Object.assign(sim, fresh);
+});
+
+const el = (id) => document.getElementById(id);
+const restTipY = sim.restTip[1];
+const maxDroop = restTipY - cfg.groundY;
+
+function updateReadout() {
+  const tipY = sim.nodes[cfg.N][1];
+  const droop = restTipY - tipY;
+  const pct = Math.max(0, Math.min(100, (droop / maxDroop) * 100));
+  el('droop').textContent = droop.toFixed(2) + ' m';
+  el('droopPct').textContent = pct.toFixed(0) + '%';
+  const tipAng = sim.theta[cfg.N - 1] * 180 / Math.PI;
+  el('tipAng').textContent = tipAng.toFixed(1) + '°';
+  const lr = targetWind / cfg.Wcrit;
+  el('loadRatio').textContent = lr.toFixed(2);
+
+  const badge = el('stateBadge');
+  if (lr < 0.75) { badge.textContent = '安全'; badge.className = 'badge safe'; }
+  else if (lr < 1.05) { badge.textContent = '逼近临界'; badge.className = 'badge near'; }
+  else { badge.textContent = '已屈曲'; badge.className = 'badge crit'; }
+
+  const bMax = cfg.betaMaxDeg;
+  sim.fruits.forEach((fr, i) => {
+    const deg = fr.beta * 180 / Math.PI;
+    el('beta' + i).textContent = deg.toFixed(1) + '°';
+    el('bar' + i).style.width = Math.min(100, Math.abs(deg) / bMax * 100) + '%';
+    el('bar' + i).style.background = fr.taut ? 'var(--danger)' : 'var(--accent)';
+  });
+  const anyTaut = sim.fruits.some((f) => f.taut);
+  el('ropeState').textContent = '果绳状态：' + (anyTaut ? '已拉直（达到极限摆角 ' + bMax + '°）' : '松弛摆动中');
+  el('ropeState').style.color = anyTaut ? 'var(--danger)' : 'var(--muted)';
+}
+
+// ===== main loop =====
+let last = performance.now();
+scene.onBeforeRenderObservable.add(() => {
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  BranchPhysics.step(sim, dt, targetWind, gustToggle.checked);
+  syncMeshes();
+
+  // wind streaks: speed proportional to wind
+  const speed = targetWind;
+  windGroup.setEnabled(speed > 0.2);
+  for (const st of streaks) {
+    st.x += st.speed * speed * dt * 0.35;
+    if (st.x > 5.2) { st.x = -1.4; st.y = 0.3 + Math.random() * 2.4; st.z = -1.2 + Math.random() * 2.4; }
+    st.mesh.position = new Vector3(st.x, st.y, st.z);
+    st.mesh.scaling.x = 0.5 + speed * 0.12;
+  }
+  updateReadout();
+});
+
+engine.runRenderLoop(() => scene.render());
+window.addEventListener('resize', () => engine.resize());
+syncMeshes();
+</script>
+</body>
+</html>
